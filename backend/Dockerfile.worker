@@ -1,0 +1,22 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install system dependencies (including ffmpeg)
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirement files
+COPY requirements-api.txt requirements-worker.txt ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements-worker.txt
+
+# Copy source code
+COPY . .
+
+# Run Celery worker for transcode queue
+CMD ["celery", "-A", "app.core.celery_app", "worker", "-Q", "transcode_queue,default", "-c", "4", "--loglevel=info"]

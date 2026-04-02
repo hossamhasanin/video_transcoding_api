@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  worker-transcode:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: transcoding-worker
+    env_file:
+      - ./backend/.env
+    environment:
+      # MUST REPLACE THIS with the IP of your Control Plane VPS
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-securepassword}@${CONTROL_PLANE_IP}:5432/transcoding_db
+      - CELERY_BROKER_URL=redis://${CONTROL_PLANE_IP}:6379/0
+      - CELERY_RESULT_BACKEND=redis://${CONTROL_PLANE_IP}:6379/0
+    restart: always
