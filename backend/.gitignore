@@ -14,4 +14,3 @@ htmlcov/
 .sqlite
 *.db
 sql_app.db
-alembic.ini
