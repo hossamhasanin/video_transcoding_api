@@ -46,11 +46,51 @@ We will use Tailscale to create a secure, private network between your servers s
 
 This node manages the API, Database, and Queues.
 
-1.  **Install Docker & Git:**
+1.  **Install Official Docker & Git:**
+
+    **Option A: Ubuntu 22.04 / 24.04**
+    *Do not use the default Ubuntu `docker.io` package as it is too old and lacks the required `buildx` features.*
     ```bash
-    sudo apt update
-    sudo apt install -y git docker.io docker-compose-v2
+    # Remove old versions
+    sudo apt-get remove docker docker-engine docker.io containerd runc
+
+    # Add Docker's official GPG key
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+    # Add the repository to Apt sources
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+
+    # Install the latest Docker packages
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin git
+    ```
+
+    **Option B: Amazon Linux 2023 (AL2023)**
+    *AL2023 uses `dnf` instead of `apt`. You must manually fetch the latest buildx plugin.*
+    ```bash
+    # Install Docker and Git
+    sudo dnf update -y
+    sudo dnf install -y docker git
+
+    # Enable and start Docker
     sudo systemctl enable --now docker
+
+    # Install the latest Docker Compose Plugin
+    sudo mkdir -p /usr/libexec/docker/cli-plugins
+    sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" -o /usr/libexec/docker/cli-plugins/docker-compose
+    sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+    # Map architecture for buildx (uses amd64/arm64 instead of x86_64/aarch64)
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "x86_64" ]; then GO_ARCH="amd64"; elif [ "$ARCH" = "aarch64" ]; then GO_ARCH="arm64"; else GO_ARCH=$ARCH; fi
+
+    # Install the latest Buildx Plugin
+    sudo curl -SL "https://github.com/docker/buildx/releases/download/v0.17.0/buildx-v0.17.0.linux-${GO_ARCH}" -o /usr/libexec/docker/cli-plugins/docker-buildx
+    sudo chmod +x /usr/libexec/docker/cli-plugins/docker-buildx
     ```
 2.  **Clone the Repository:**
     ```bash
