@@ -1,0 +1,92 @@
+openapi: 3.1.0
+info:
+  title: Video Transcoding API
+  version: 1.0.0
+  description: API for asynchronously transcoding videos, applying smart presets, generating subtitles, and retrieving output streams.
+servers:
+  - url: https://api.transcodeflow.example.com/v1
+security:
+  - ApiKeyAuth: []
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    JobRequest:
+      type: object
+      properties:
+        input_url:
+          type: string
+          format: uri
+          description: URL of the source video (up to 5GB). Leave empty if using direct upload.
+        preset:
+          type: string
+          enum: [tiktok, youtube, standard]
+        output_format:
+          type: string
+          enum: [mp4, hls]
+        generate_subtitles:
+          type: boolean
+          default: false
+        webhook_url:
+          type: string
+          format: uri
+          description: Endpoint to send job status updates via POST webhook.
+    JobResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tracking_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        upload_url:
+          type: string
+          format: uri
+          description: Presigned URL for direct upload if `input_url` was omitted.
+
+paths:
+  /jobs:
+    post:
+      summary: Submit a new transcoding job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobRequest'
+      responses:
+        '202':
+          description: Job successfully queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '401':
+          description: Unauthorized - Invalid API Key
+        '402':
+          description: Payment Required - Limits exceeded
+        '422':
+          description: Validation Error
+  
+  /jobs/{tracking_id}:
+    get:
+      summary: Get job status (Polling Alternative)
+      parameters:
+        - in: path
+          name: tracking_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'

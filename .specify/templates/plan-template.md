@@ -31,7 +31,10 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] **Code Quality**: Ensures modular, readable, and typed components.
+- [ ] **Testing Standards**: Defines required automated test coverage for critical paths.
+- [ ] **UX Consistency**: Maintains API and interface consistency.
+- [ ] **Performance**: Evaluates intensive operations and resource boundaries.
 
 ## Project Structure
 

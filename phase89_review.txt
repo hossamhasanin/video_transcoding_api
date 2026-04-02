@@ -1,0 +1,575 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from uuid import UUID
+import secrets
+
+from app.core.database import get_db
+from app.models.api_key import ApiKey
+from app.models.user import User
+from app.schemas.api_key import ApiKeyCreate, ApiKeyResponse, ApiKeyCreateResponse
+from app.api.dependencies import get_current_user, get_hash
+
+router = APIRouter()
+
+def generate_api_key(prefix: str = "vf_"):
+    raw_key = secrets.token_urlsafe(32)
+    return f"{prefix}{raw_key}"
+
+@router.get(
+    "/",
+    response_model=list[ApiKeyResponse],
+    summary="List API Keys",
+    description="Retrieves a list of all active API keys associated with the current user account."
+)
+def get_api_keys(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    keys = db.query(ApiKey).filter(ApiKey.user_id == current_user.id).all()
+    return keys
+
+@router.post(
+    "/",
+    response_model=ApiKeyCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create API Key",
+    description="Generates a new API key for the current user. Only returns the full key once."
+)
+def create_api_key(
+    key_in: ApiKeyCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    raw_key = generate_api_key()
+    key_prefix = "vf_"
+    hashed_key = get_hash(raw_key)
+
+    new_key = ApiKey(
+        user_id=current_user.id,
+        key_hash=hashed_key,
+        key_prefix=key_prefix,
+        name=key_in.name,
+        is_active=True
+    )
+    db.add(new_key)
+    db.commit()
+    db.refresh(new_key)
+
+    return ApiKeyCreateResponse(
+        id=new_key.id,
+        name=new_key.name,
+        key_prefix=new_key.key_prefix,
+        key_value=raw_key,
+        created_at=new_key.created_at,
+        is_active=new_key.is_active
+    )
+
+@router.delete(
+    "/{key_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Revoke API Key",
+    description="Revokes and deletes an existing API key, preventing future access."
+)
+def delete_api_key(
+    key_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    key = db.query(ApiKey).filter(ApiKey.id == key_id, ApiKey.user_id == current_user.id).first()
+    if not key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API Key not found")
+    
+    # We revoke by setting is_active to False (or we could physically delete)
+    # The requirement is "revoke", so soft delete seems better or physical delete.
+    db.delete(key)
+    db.commit()
+    return None
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from app.core.database import get_db
+from app.models.user import User
+from app.models.job import Job
+from app.schemas.usage import UsageStatsResponse
+from app.api.dependencies import get_current_user
+
+router = APIRouter()
+
+@router.get(
+    "/",
+    response_model=UsageStatsResponse,
+    summary="Get Usage Statistics",
+    description="Fetches aggregated usage statistics consisting of job counts, processed duration, and storage tracking."
+)
+def get_usage_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    total_jobs = db.query(func.count(Job.id)).filter(Job.user_id == current_user.id).scalar() or 0
+    completed_jobs = db.query(func.count(Job.id)).filter(Job.user_id == current_user.id, Job.status == "completed").scalar() or 0
+    failed_jobs = db.query(func.count(Job.id)).filter(Job.user_id == current_user.id, Job.status == "failed").scalar() or 0
+    
+    # For MVP, we mock these since we don't store actual minutes or bytes in Job table yet.
+    return UsageStatsResponse(
+        total_jobs=total_jobs,
+        completed_jobs=completed_jobs,
+        failed_jobs=failed_jobs,
+        storage_used_bytes=completed_jobs * 1024 * 1024 * 50, # approx 50MB per job
+        processed_minutes=completed_jobs * 2 # approx 2 mins per job
+    )
+from fastapi import Depends, HTTPException, Security, status
+from fastapi.security.api_key import APIKeyHeader
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from passlib.context import CryptContext
+
+from app.core.database import get_db
+from app.models.api_key import ApiKey
+from app.models.user import User
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_api_key_str(plain_key: str, hashed_key: str) -> bool:
+    return pwd_context.verify(plain_key, hashed_key)
+
+def get_hash(plain_key: str) -> str:
+    return pwd_context.hash(plain_key)
+
+def get_current_api_key(
+    api_key: str = Security(api_key_header),
+    db: Session = Depends(get_db)
+) -> ApiKey:
+    """
+    Validates the provided API key and returns the ApiKey model instance.
+    The api key is typically in the format: prefix_actualkey
+    We match by prefix first, or just verify all active keys for the user (less efficient).
+    A better approach is extracting the prefix from the API key to find it faster.
+    """
+    if "_" not in api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API Key format",
+        )
+    
+    prefix = api_key.split("_")[0] + "_"
+    
+    # Find active keys with this prefix
+    db_keys = db.query(ApiKey).filter(ApiKey.key_prefix == prefix, ApiKey.is_active == True).all()
+    
+    for db_key in db_keys:
+        if verify_api_key_str(api_key, db_key.key_hash):
+            return db_key
+            
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+    )
+
+def get_current_user(
+    api_key_obj: ApiKey = Depends(get_current_api_key),
+    db: Session = Depends(get_db)
+) -> User:
+    """Returns the user associated with the valid API key."""
+    user = db.query(User).filter(User.id == api_key_obj.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    return user
+
+def check_concurrent_jobs_limit(
+    api_key_obj: ApiKey = Depends(get_current_api_key),
+    db: Session = Depends(get_db)
+) -> ApiKey:
+    """Enforce a maximum number of concurrent pending/processing jobs per user."""
+    MAX_CONCURRENT_JOBS = 10
+    
+    from app.models.job import Job
+    active_jobs_count = db.query(Job).filter(
+        Job.user_id == api_key_obj.user_id,
+        or_(Job.status == "pending", Job.status == "processing")
+    ).count()
+    
+    if active_jobs_count >= MAX_CONCURRENT_JOBS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Concurrent job limit exceeded. Maximum allowable is {MAX_CONCURRENT_JOBS}."
+        )
+    return api_key_obj
+import os
+import uuid
+import tempfile
+import requests
+import re
+from botocore.exceptions import ClientError
+
+from app.core.celery_app import celery_app
+from app.core.database import SessionLocal
+from app.models.job import Job
+from app.worker.transcoder import process_video_transcode
+from app.core.storage import get_s3_client, upload_directory_to_s3
+from app.core.config import settings
+
+
+@celery_app.task(name="transcode_video", bind=True, max_retries=3)
+def transcode_video_task(self, job_id: str):
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            return f"Job {job_id} not found"
+
+        job.status = "processing"
+
+        source_url = job.source_url
+        output_format = job.output_format
+        preset = job.preset
+        generate_subtitles = job.generate_subtitles
+        webhook_url = job.webhook_url
+        db.commit()
+    finally:
+        db.close()
+
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_file_path = os.path.join(temp_dir, f"source_{job_id}.tmp")
+            if output_format == "hls":
+                output_path = os.path.join(temp_dir, f"output_{job_id}_hls")
+            else:
+                output_path = os.path.join(temp_dir, f"output_{job_id}.mp4")
+
+            print(f"Downloading source video from {source_url}")
+            response = requests.get(source_url, stream=True, timeout=(10, 600))
+            response.raise_for_status()
+            with open(source_file_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            print(
+                f"Starting transcode for job {job_id} with format {output_format} and preset {preset}"
+            )
+            process_video_transcode(
+                source_file_path,
+                output_path,
+                output_format=output_format,
+                preset_name=preset,
+            )
+
+            print(f"Uploading transcoded video to storage")
+            bucket_name = settings.S3_BUCKET_NAME
+            base_s3_prefix = f"transcoded/{job_id}"
+
+            audio_extracted = False
+            audio_s3_key = None
+            if generate_subtitles:
+                from app.worker.transcoder import extract_audio, has_audio_stream
+
+                if has_audio_stream(source_file_path):
+                    audio_path = os.path.join(temp_dir, f"audio_{job_id}.wav")
+
+                    print(f"Extracting audio for job {job_id}")
+                    extract_audio(source_file_path, audio_path)
+
+                    print("Uploading audio to storage for ML processing")
+                    s3 = get_s3_client()
+                    audio_s3_key = f"{base_s3_prefix}/audio.wav"
+                    s3.upload_file(
+                        audio_path,
+                        bucket_name,
+                        audio_s3_key,
+                        ExtraArgs={"ContentType": "audio/wav"},
+                    )
+                    audio_extracted = True
+                else:
+                    print(f"No audio stream found for job {job_id}, skipping subtitles")
+
+            if output_format == "hls":
+                upload_directory_to_s3(output_path, bucket_name, base_s3_prefix)
+                object_key = f"{base_s3_prefix}/master.m3u8"
+            else:
+                s3 = get_s3_client()
+                object_key = f"{base_s3_prefix}/output.mp4"
+                s3.upload_file(
+                    output_path,
+                    bucket_name,
+                    object_key,
+                    ExtraArgs={"ContentType": "video/mp4"},
+                )
+
+            if settings.R2_ACCOUNT_ID:
+                public_url = f"https://{settings.S3_BUCKET_NAME}.{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{object_key}"
+            else:
+                public_url = f"https://{bucket_name}.s3.amazonaws.com/{object_key}"
+
+        db_completion = SessionLocal()
+        try:
+            job_complete = db_completion.query(Job).filter(Job.id == job_id).first()
+            if job_complete:
+                job_complete.output_url = public_url
+                if not (generate_subtitles and audio_extracted):
+                    job_complete.status = "completed"
+                db_completion.commit()
+        finally:
+            db_completion.close()
+
+        if generate_subtitles and audio_extracted:
+            print(f"Queueing ML task for job {job_id}")
+            generate_subtitles_task.delay(job_id, audio_s3_key)
+            return f"Job {job_id} video completed, queued for subtitles"
+        else:
+            if webhook_url:
+                from app.worker.webhooks import send_webhook_task
+
+                send_webhook_task.delay(job_id)
+            return (
+                f"Job {job_id} completed successfully (subtitles skipped or disabled)"
+            )
+
+    except Exception as e:
+        err_str = str(e)
+        error_message = ""
+        if "ffmpeg" in err_str.lower() or "ffprobe" in err_str.lower():
+            sanitized = re.sub(
+                r"(/.+/temp.+/)(source_.+\.tmp|output_.+|audio_.+|subtitles_.+)",
+                r"[SERVER_PATH]",
+                err_str,
+            )
+            error_message = f"ffmpeg Error: {sanitized[-200:]}"
+        else:
+            error_message = f"Job Error: {err_str[-200:]}"
+
+        print(f"Job {job_id} failed: {e}")
+
+        try:
+            raise self.retry(exc=e, countdown=60)
+        except self.MaxRetriesExceededError:
+            db_fail = SessionLocal()
+            try:
+                job_fail = db_fail.query(Job).filter(Job.id == job_id).first()
+                if job_fail:
+                    job_fail.status = "failed"
+                    job_fail.error_message = error_message
+                    db_fail.commit()
+            finally:
+                db_fail.close()
+
+            if webhook_url:
+                from app.worker.webhooks import send_webhook_task
+
+                send_webhook_task.delay(job_id)
+            raise
+
+
+@celery_app.task(name="generate_subtitles_task", bind=True, max_retries=3)
+def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            return f"Job {job_id} not found"
+        webhook_url = job.webhook_url
+    finally:
+        db.close()
+
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            audio_path = os.path.join(temp_dir, f"audio_{job_id}.wav")
+            subtitle_path = os.path.join(temp_dir, f"subtitles_{job_id}.vtt")
+
+            s3 = get_s3_client()
+            bucket_name = settings.S3_BUCKET_NAME
+            base_s3_prefix = f"transcoded/{job_id}"
+
+            print(f"Downloading audio from S3: {audio_s3_key}")
+            s3.download_file(bucket_name, audio_s3_key, audio_path)
+
+            print(f"Generating subtitles for job {job_id}")
+            from app.worker.subtitles import generate_subtitles_from_audio
+
+            generate_subtitles_from_audio(audio_path, subtitle_path)
+
+            print("Uploading subtitles to storage")
+            subtitle_key = f"{base_s3_prefix}/subtitles.vtt"
+            s3.upload_file(
+                subtitle_path,
+                bucket_name,
+                subtitle_key,
+                ExtraArgs={"ContentType": "text/vtt"},
+            )
+
+            if settings.R2_ACCOUNT_ID:
+                sub_url = f"https://{settings.S3_BUCKET_NAME}.{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{subtitle_key}"
+            else:
+                sub_url = f"https://{bucket_name}.s3.amazonaws.com/{subtitle_key}"
+
+            try:
+                s3.delete_object(Bucket=bucket_name, Key=audio_s3_key)
+            except Exception as e:
+                print(f"Failed to delete audio from S3: {e}")
+
+        db_completion = SessionLocal()
+        try:
+            job_complete = db_completion.query(Job).filter(Job.id == job_id).first()
+            if job_complete:
+                job_complete.status = "completed"
+                job_complete.subtitle_url = sub_url
+                db_completion.commit()
+        finally:
+            db_completion.close()
+
+        if webhook_url:
+            from app.worker.webhooks import send_webhook_task
+
+            send_webhook_task.delay(job_id)
+
+        return f"Job {job_id} subtitles completed successfully"
+
+    except Exception as e:
+        err_str = str(e)
+        error_message = f"ML Error: {err_str[-200:]}"
+        print(f"Job {job_id} ML failed: {e}")
+
+        try:
+            raise self.retry(exc=e, countdown=60)
+        except self.MaxRetriesExceededError:
+            db_fail = SessionLocal()
+            try:
+                job_fail = db_fail.query(Job).filter(Job.id == job_id).first()
+                if job_fail:
+                    job_fail.status = "failed"
+                    old_msg = job_fail.error_message or ""
+                    job_fail.error_message = f"{old_msg} | {error_message}"
+                    db_fail.commit()
+            finally:
+                db_fail.close()
+
+            if webhook_url:
+                from app.worker.webhooks import send_webhook_task
+
+                send_webhook_task.delay(job_id)
+            raise
+import ffmpeg
+import os
+from app.core.presets import SMART_PRESETS
+
+def process_video_transcode(
+    source_file_path: str,
+    output_path: str,
+    output_format: str = "mp4",
+    preset_name: str = None
+) -> bool:
+    """
+    Transcodes a given source video file based on format and preset.
+    If output_format is 'hls', output_path should be a directory.
+    """
+    try:
+        stream = ffmpeg.input(source_file_path)
+        
+        # Base encoding settings
+        kwargs = {
+            'vcodec': 'libx264',
+            'acodec': 'aac',
+            'preset': 'fast',
+            'crf': 23,
+        }
+
+        # Apply preset if exists
+        if preset_name and preset_name in SMART_PRESETS:
+            preset_opts = SMART_PRESETS[preset_name]
+            if 'vf' in preset_opts:
+                kwargs['vf'] = preset_opts['vf']
+            if 'video_bitrate' in preset_opts:
+                kwargs['video_bitrate'] = preset_opts['video_bitrate']
+            if 'audio_bitrate' in preset_opts:
+                kwargs['audio_bitrate'] = preset_opts['audio_bitrate']
+
+        if output_format == 'hls':
+            # Create master playlist and segmentation in the output_path directory
+            os.makedirs(output_path, exist_ok=True)
+            output_file = os.path.join(output_path, "master.m3u8")
+            kwargs.update({
+                'f': 'hls',
+                'hls_time': 10,
+                'hls_playlist_type': 'vod',
+                'hls_segment_filename': os.path.join(output_path, "segment_%03d.ts")
+            })
+        else:
+            # MP4 specific
+            output_file = output_path
+            kwargs['movflags'] = '+faststart'
+
+        stream = ffmpeg.output(stream, output_file, **kwargs)
+        
+        # Execute the transcode
+        ffmpeg.run(stream, overwrite_output=True, capture_stdout=True, capture_stderr=True)
+        return True
+    except ffmpeg.Error as e:
+        error_msg = e.stderr.decode('utf8') if e.stderr else "Unknown FFmpeg Error"
+        raise Exception(f"FFmpeg transcode failed: {error_msg}")
+
+def has_audio_stream(source_file_path: str) -> bool:
+    """
+    Checks if a given video file has an audio stream.
+    """
+    try:
+        probe = ffmpeg.probe(source_file_path)
+        return any(stream.get('codec_type') == 'audio' for stream in probe.get('streams', []))
+    except ffmpeg.Error:
+        return False
+
+def extract_audio(source_file_path: str, output_path: str) -> bool:
+    """
+    Extracts audio from video and converts it to 16kHz mono WAV for speech recognition.
+    """
+    try:
+        stream = ffmpeg.input(source_file_path)
+        stream = ffmpeg.output(stream, output_path, acodec='pcm_s16le', ac=1, ar='16k')
+        ffmpeg.run(stream, overwrite_output=True, capture_stdout=True, capture_stderr=True)
+        return True
+    except ffmpeg.Error as e:
+        error_msg = e.stderr.decode('utf8') if e.stderr else "Unknown FFmpeg Error"
+        raise Exception(f"FFmpeg audio extraction failed: {error_msg}")
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.core.rate_limit import limiter
+from app.core.config import settings
+from app.core.logging import setup_logging
+from app.api.endpoints import jobs, keys, usage
+
+setup_logging()
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    description="Developer-friendly Video Transcoding API handling MP4, HLS, Webhooks, and Subtitles.",
+    version="1.0.0",
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    contact={
+        "name": "API Support",
+        "email": "support@transcodeflow.com",
+    },
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.include_router(jobs.router, prefix=f"{settings.API_V1_STR}/jobs", tags=["jobs"])
+app.include_router(keys.router, prefix=f"{settings.API_V1_STR}/keys", tags=["keys"])
+app.include_router(usage.router, prefix=f"{settings.API_V1_STR}/usage", tags=["usage"])
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}

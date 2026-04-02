@@ -1,50 +1,49 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+Version change: 1.0.0 (Initial configuration)
+Modified Principles:
+- Added I. Code Quality
+- Added II. Testing Standards
+- Added III. User Experience Consistency
+- Added IV. Performance Requirements
+Added Sections:
+- Additional Constraints
+- Development Workflow
+Removed Sections:
+- Previous placeholder principles
+Templates requiring updates:
+- .specify/templates/plan-template.md: ✅ updated
+- .specify/templates/spec-template.md: ✅ updated
+- .specify/templates/tasks-template.md: ✅ updated
+Follow-up TODOs: None
+-->
+
+# Video Transcoding API Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Code Quality
+Code MUST be modular, readable, and strictly typed where applicable. All features MUST be broken down into cohesive, self-contained components with clear boundaries. Duplication should be avoided and complexity explicitly justified.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Testing Standards
+Automated testing MUST cover all critical paths and boundary conditions. Changes MUST NOT be introduced without adequate test coverage, prioritizing integration and unit tests that run as part of the CI/CD pipeline.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. User Experience Consistency
+All interfaces, whether programmatic (API) or visual (UI), MUST be consistent. Endpoints MUST follow established RESTful or documented standards, and responses/errors MUST follow standard predictable formats.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Performance Requirements
+Performance MUST be a primary consideration. Background processes or pipelines that are resource-intensive MUST prevent concurrent overlapping overlap for the same user, scaling appropriately, and returning responses with the lowest reasonable latency.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+## Additional Constraints
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Scalability and storage constraints MUST be continuously monitored, with appropriate automated cleanup and reporting mechanisms in place to handle large assets intelligently.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+## Development Workflow
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
-
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Development MUST begin with an approved design or plan. Code MUST undergo review to verify adherence to this Constitution before merging.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This Constitution supersedes all specific practices. Amendments to these principles require documentation and an incremented semantic version. All code reviews and plans MUST explicitly verify compliance with this Constitution.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-04-01 | **Last Amended**: 2026-04-01

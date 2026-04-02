@@ -109,10 +109,10 @@
 
 ### Measurable Outcomes
 
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+- **SC-001**: [UX Consistency, e.g., "Users can complete account creation in under 2 minutes consistently"]
+- **SC-002**: [Performance metric, e.g., "System handles 1000 concurrent users with 95th percentile latency < 200ms"]
+- **SC-003**: [Code Quality metric, e.g., "Zero new technical debt introduced; all new and modified components meet typing constraints"]
+- **SC-004**: [Testing metric, e.g., "100% of newly introduced boundary paths covered by automated integration tests"]
 
 ## Assumptions
 
