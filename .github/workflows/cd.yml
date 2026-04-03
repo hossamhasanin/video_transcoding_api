@@ -9,11 +9,13 @@ on:
 
 env:
   DEPLOY_PATH: ~/transcoding-app
-  COMPOSE_FILE: docker-compose.control.yml
 
 jobs:
-  deploy:
-    name: Deploy to VPS
+  # ===========================================
+  # CONTROL PLANE (VPS 1) - API + Frontend + DB + Redis
+  # ===========================================
+  deploy-control:
+    name: Deploy Control Plane
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     
@@ -21,89 +23,179 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to VPS via SSH
+      - name: Deploy Control Plane via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || 22 }}
+          host: ${{ secrets.CONTROL_VPS_HOST }}
+          username: ${{ secrets.CONTROL_VPS_USERNAME }}
+          key: ${{ secrets.CONTROL_VPS_SSH_KEY }}
+          port: ${{ secrets.CONTROL_VPS_PORT || 22 }}
           script: |
-            # Navigate to project directory
             cd ${{ env.DEPLOY_PATH }}
             
-            # Pull latest changes
             echo "📥 Pulling latest changes..."
             git pull origin main
             
-            # Copy environment file if it doesn't exist
             if [ ! -f .env ]; then
-              echo "⚠️  No .env file found. Please create one from .env.example"
+              echo "❌ No .env file found!"
               exit 1
             fi
             
-            # Copy .env to backend directory
             echo "📋 Setting up environment..."
             cp .env backend/.env
             
-            # Build and restart services
-            echo "🔨 Building and restarting services..."
-            sudo docker compose -f ${{ env.COMPOSE_FILE }} up -d --build
+            echo "🔨 Building and restarting Control Plane..."
+            sudo docker compose -f docker-compose.control.yml up -d --build
             
-            # Wait for services to start
             echo "⏳ Waiting for services to start..."
             sleep 15
             
-            # Run database migrations
             echo "🗄️  Running database migrations..."
-            sudo docker compose -f ${{ env.COMPOSE_FILE }} exec -T api alembic upgrade head || echo "⚠️  Migration may have already been applied"
+            sudo docker compose -f docker-compose.control.yml exec -T api alembic upgrade head || echo "⚠️  Migration may have already been applied"
             
-            # Health check - API
-            echo "🏥 Performing health checks..."
+            echo "🏥 Health checks..."
             for i in {1..5}; do
               if curl -f http://localhost:8000/health > /dev/null 2>&1; then
                 echo "✅ API is healthy"
                 break
               else
-                echo "⏳ Waiting for API to be ready... (attempt $i/5)"
+                echo "⏳ Waiting for API... (attempt $i/5)"
                 sleep 10
               fi
             done
             
-            # Health check - Frontend
             for i in {1..5}; do
               if curl -f http://localhost > /dev/null 2>&1; then
                 echo "✅ Frontend is healthy"
                 break
               else
-                echo "⏳ Waiting for frontend to be ready... (attempt $i/5)"
+                echo "⏳ Waiting for frontend... (attempt $i/5)"
                 sleep 10
               fi
             done
             
-            # Show running containers
             echo "📦 Running containers:"
-            sudo docker compose -f ${{ env.COMPOSE_FILE }} ps
+            sudo docker compose -f docker-compose.control.yml ps
             
-            echo "✅ Deployment completed successfully!"
+            echo "✅ Control Plane deployed!"
 
-      - name: Send deployment notification
-        if: success()
+  # ===========================================
+  # TRANSCODE WORKER (VPS 2) - FFmpeg tasks
+  # ===========================================
+  deploy-worker:
+    name: Deploy Transcode Worker
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy Worker via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.WORKER_VPS_HOST }}
+          username: ${{ secrets.WORKER_VPS_USERNAME }}
+          key: ${{ secrets.WORKER_VPS_SSH_KEY }}
+          port: ${{ secrets.WORKER_VPS_PORT || 22 }}
+          script: |
+            cd ${{ env.DEPLOY_PATH }}
+            
+            echo "📥 Pulling latest changes..."
+            git pull origin main
+            
+            if [ ! -f .env ]; then
+              echo "❌ No .env file found!"
+              exit 1
+            fi
+            
+            echo "📋 Setting up environment..."
+            cp .env backend/.env
+            
+            echo "🔨 Building and restarting Transcode Worker..."
+            sudo docker compose -f docker-compose.worker.yml up -d --build
+            
+            echo "⏳ Waiting for worker to start..."
+            sleep 10
+            
+            echo "📦 Running containers:"
+            sudo docker compose -f docker-compose.worker.yml ps
+            
+            echo "✅ Transcode Worker deployed!"
+
+  # ===========================================
+  # ML WORKER (VPS 3) - WhisperX subtitle generation
+  # ===========================================
+  deploy-ml:
+    name: Deploy ML Worker
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy ML Worker via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ML_VPS_HOST }}
+          username: ${{ secrets.ML_VPS_USERNAME }}
+          key: ${{ secrets.ML_VPS_SSH_KEY }}
+          port: ${{ secrets.ML_VPS_PORT || 22 }}
+          script: |
+            cd ${{ env.DEPLOY_PATH }}
+            
+            echo "📥 Pulling latest changes..."
+            git pull origin main
+            
+            if [ ! -f .env ]; then
+              echo "❌ No .env file found!"
+              exit 1
+            fi
+            
+            echo "📋 Setting up environment..."
+            cp .env backend/.env
+            
+            echo "🔨 Building and restarting ML Worker..."
+            sudo docker compose -f docker-compose.ml.yml up -d --build
+            
+            echo "⏳ Waiting for worker to start..."
+            sleep 10
+            
+            echo "📦 Running containers:"
+            sudo docker compose -f docker-compose.ml.yml ps
+            
+            echo "✅ ML Worker deployed!"
+
+  # ===========================================
+  # DEPLOYMENT SUMMARY
+  # ===========================================
+  notify:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [deploy-control, deploy-worker, deploy-ml]
+    if: always()
+    
+    steps:
+      - name: Check deployment status
         run: |
-          echo "🚀 Deployment to production completed successfully!"
+          echo "📊 Deployment Summary"
+          echo "===================="
           echo "Commit: ${{ github.sha }}"
           echo "Branch: ${{ github.ref_name }}"
           echo "Triggered by: ${{ github.actor }}"
+          echo ""
+          echo "Results:"
+          echo "  Control Plane: ${{ needs.deploy-control.result }}"
+          echo "  Transcode Worker: ${{ needs.deploy-worker.result }}"
+          echo "  ML Worker: ${{ needs.deploy-ml.result }}"
           
-          # You can add Slack/Discord/Telegram notification here
-          # For example, using curl to send to a webhook
-
-      - name: Send failure notification
-        if: failure()
-        run: |
-          echo "❌ Deployment failed!"
-          echo "Commit: ${{ github.sha }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Triggered by: ${{ github.actor }}"
-          
-          # You can add failure notification here
+          if [[ "${{ needs.deploy-control.result }}" == "success" && \
+                "${{ needs.deploy-worker.result }}" == "success" && \
+                "${{ needs.deploy-ml.result }}" == "success" ]]; then
+            echo ""
+            echo "✅ All deployments successful!"
+          else
+            echo ""
+            echo "⚠️  Some deployments failed. Check logs above."
+          fi

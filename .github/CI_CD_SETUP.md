@@ -1,6 +1,33 @@
 # CI/CD Pipeline Setup
 
-This project uses GitHub Actions for Continuous Integration and Continuous Deployment.
+This project uses GitHub Actions for Continuous Integration and Continuous Deployment across multiple VPS nodes.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     GitHub Actions                           │
+│                                                              │
+│  CI (on push/PR)              CD (after CI passes on main)  │
+│  ┌─────────────────┐          ┌─────────────────────────┐   │
+│  │ • Lint backend  │          │  Deploy to 3 VPS nodes  │   │
+│  │ • Lint frontend │  ──────> │  (in parallel)          │   │
+│  │ • Build Docker  │          │                         │   │
+│  └─────────────────┘          └─────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                                    │
+            ┌───────────────────────┼───────────────────────┐
+            ▼                       ▼                       ▼
+   ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+   │  VPS 1 (Control)│    │ VPS 2 (Worker)  │    │ VPS 3 (ML)      │
+   │                 │    │                 │    │                 │
+   │ • Frontend      │    │ • Transcode     │    │ • WhisperX      │
+   │ • API           │    │   Worker        │    │   Subtitles     │
+   │ • PostgreSQL    │    │ • FFmpeg        │    │ • GPU/CPU       │
+   │ • Redis         │    │                 │    │                 │
+   │ • Traefik       │    │                 │    │                 │
+   └─────────────────┘    └─────────────────┘    └─────────────────┘
+```
 
 ## Workflows
 
@@ -24,39 +51,73 @@ Runs on every push and pull request to `main` and `develop` branches.
 
 Runs automatically when CI passes on the `main` branch.
 
-**What it does:**
-- SSHs into your VPS
-- Pulls the latest code
-- Rebuilds and restarts all Docker containers
-- Runs database migrations
-- Performs health checks on the API and Frontend
+**Deploys to 3 VPS nodes in parallel:**
+1. **Control Plane** (VPS 1): Frontend + API + PostgreSQL + Redis + Traefik
+2. **Transcode Worker** (VPS 2): Celery worker for FFmpeg tasks
+3. **ML Worker** (VPS 3): Celery worker for WhisperX subtitle generation
 
 ## Required GitHub Secrets
 
-For the CD pipeline to work, you need to set up these secrets in your GitHub repository:
-
 Go to: **Repository Settings → Secrets and variables → Actions → New repository secret**
+
+### Control Plane (VPS 1)
 
 | Secret Name | Description | Example |
 |-------------|-------------|---------|
-| `VPS_HOST` | Your VPS IP address or domain | `123.456.789.0` |
-| `VPS_USERNAME` | SSH username on your VPS | `ubuntu` |
-| `VPS_SSH_KEY` | Your private SSH key (entire content) | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
-| `VPS_PORT` | SSH port (optional, defaults to 22) | `22` |
+| `CONTROL_VPS_HOST` | VPS 1 IP address or domain | `100.64.0.1` |
+| `CONTROL_VPS_USERNAME` | SSH username | `ubuntu` |
+| `CONTROL_VPS_SSH_KEY` | Private SSH key (full content) | `-----BEGIN OPENSSH...` |
+| `CONTROL_VPS_PORT` | SSH port (optional, default 22) | `22` |
 
-## How to Get Your SSH Key
+### Transcode Worker (VPS 2)
 
-If you don't have an SSH key yet:
+| Secret Name | Description | Example |
+|-------------|-------------|---------|
+| `WORKER_VPS_HOST` | VPS 2 IP address or domain | `100.64.0.2` |
+| `WORKER_VPS_USERNAME` | SSH username | `ubuntu` |
+| `WORKER_VPS_SSH_KEY` | Private SSH key (full content) | `-----BEGIN OPENSSH...` |
+| `WORKER_VPS_PORT` | SSH port (optional, default 22) | `22` |
+
+### ML Worker (VPS 3)
+
+| Secret Name | Description | Example |
+|-------------|-------------|---------|
+| `ML_VPS_HOST` | VPS 3 IP address or domain | `100.64.0.3` |
+| `ML_VPS_USERNAME` | SSH username | `ubuntu` |
+| `ML_VPS_SSH_KEY` | Private SSH key (full content) | `-----BEGIN OPENSSH...` |
+| `ML_VPS_PORT` | SSH port (optional, default 22) | `22` |
+
+## Setting Up SSH Keys
+
+You can use the **same SSH key for all 3 VPS** or separate keys per VPS.
+
+### Option 1: Single Key for All VPS (Simpler)
 
 ```bash
-# Generate a new SSH key
+# Generate one SSH key
 ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/github_actions
 
-# Copy the public key to your VPS
-ssh-copy-id -i ~/.ssh/github_actions.pub user@your-vps-ip
+# Copy to all 3 VPS
+ssh-copy-id -i ~/.ssh/github_actions.pub ubuntu@vps1-ip
+ssh-copy-id -i ~/.ssh/github_actions.pub ubuntu@vps2-ip
+ssh-copy-id -i ~/.ssh/github_actions.pub ubuntu@vps3-ip
 
-# Copy the private key content (this goes into GitHub Secrets)
+# Use the same private key for all 3 secrets in GitHub
 cat ~/.ssh/github_actions
+```
+
+### Option 2: Separate Keys per VPS (More Secure)
+
+```bash
+# Generate separate keys
+ssh-keygen -t ed25519 -C "github-control" -f ~/.ssh/gh_control
+ssh-keygen -t ed25519 -C "github-worker" -f ~/.ssh/gh_worker
+ssh-keygen -t ed25519 -C "github-ml" -f ~/.ssh/gh_ml
+
+# Copy each key to its VPS
+ssh-copy-id -i ~/.ssh/gh_control.pub ubuntu@vps1-ip
+ssh-copy-id -i ~/.ssh/gh_worker.pub ubuntu@vps2-ip
+ssh-copy-id -i ~/.ssh/gh_ml.pub ubuntu@vps3-ip
 ```
 
 ## Deployment Flow
@@ -68,24 +129,42 @@ CI Workflow runs (lint + test + build)
     ↓
 CI passes ✅
     ↓
-CD Workflow triggers
+CD Workflow triggers 3 parallel jobs:
+    ├── Control VPS: Pull → Build → Migrate → Health Check
+    ├── Worker VPS:  Pull → Build
+    └── ML VPS:      Pull → Build
     ↓
-SSH into VPS → Pull → Build → Migrate → Health Check
-    ↓
-Deployment complete! 🚀
+All deployments complete → Summary notification
 ```
 
 ## Manual Deployment
 
-If you need to deploy manually:
-
+### Control Plane (VPS 1)
 ```bash
-ssh user@your-vps-ip
+ssh ubuntu@vps1-ip
 cd ~/transcoding-app
 git pull origin main
 cp .env backend/.env
 sudo docker compose -f docker-compose.control.yml up -d --build
 sudo docker compose -f docker-compose.control.yml exec api alembic upgrade head
+```
+
+### Transcode Worker (VPS 2)
+```bash
+ssh ubuntu@vps2-ip
+cd ~/transcoding-app
+git pull origin main
+cp .env backend/.env
+sudo docker compose -f docker-compose.worker.yml up -d --build
+```
+
+### ML Worker (VPS 3)
+```bash
+ssh ubuntu@vps3-ip
+cd ~/transcoding-app
+git pull origin main
+cp .env backend/.env
+sudo docker compose -f docker-compose.ml.yml up -d --build
 ```
 
 ## Troubleshooting
@@ -99,7 +178,23 @@ sudo docker compose -f docker-compose.control.yml exec api alembic upgrade head
 - Check that the public key is in `~/.ssh/authorized_keys` on your VPS
 - Ensure the VPS hostname/IP is correct
 
-### CD fails on health check
+### CD fails on health check (Control Plane only)
 - Check Docker logs: `sudo docker compose -f docker-compose.control.yml logs`
 - Verify the `.env` file exists and has correct values
 - Ensure ports 80 and 443 are open on your VPS
+
+### Worker deployment succeeds but jobs don't process
+- Ensure `CONTROL_PLANE_IP` in `.env` points to the Control Plane's Tailscale IP
+- Verify Redis is accessible from worker nodes (check Tailscale connectivity)
+- Check worker logs: `sudo docker compose -f docker-compose.worker.yml logs -f`
+
+## Adding More Workers
+
+To add more transcode workers (horizontal scaling):
+
+1. Set up a new VPS with Docker
+2. Clone the repo and configure `.env`
+3. Add new secrets in GitHub (`WORKER2_VPS_HOST`, etc.)
+4. Add a new job in `cd.yml` (copy the `deploy-worker` job)
+
+Each worker pulls from the same Redis queue, so they automatically share the workload.
