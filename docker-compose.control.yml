@@ -32,7 +32,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-securepassword}
       POSTGRES_DB: transcoding_db
     ports:
-      - "${BIND_IP:-0.0.0.0}:5432:5432" # Bind to Tailscale IP in production!
+      - "${BIND_IP:-127.0.0.1}:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: always
@@ -40,8 +40,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: transcoding-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-changeme}
     ports:
-      - "${BIND_IP:-0.0.0.0}:6379:6379" # Bind to Tailscale IP in production!
+      - "${BIND_IP:-127.0.0.1}:6379:6379"
     restart: always
 
   api:
@@ -53,8 +54,8 @@ services:
       - ./backend/.env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-securepassword}@db:5432/transcoding_db
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
     labels:
       - "traefik.enable=true"
       # The rule matches your IP or Domain, and specifically the API routes (and docs)

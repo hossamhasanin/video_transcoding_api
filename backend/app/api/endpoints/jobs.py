@@ -12,6 +12,7 @@ from app.worker.tasks import transcode_video_task
 
 router = APIRouter()
 
+
 @router.post(
     "/",
     response_model=JobResponse,
@@ -46,6 +47,7 @@ def create_job(
 
     return new_job
 
+
 @router.get(
     "/{tracking_id}",
     response_model=JobStatusResponse,
@@ -60,7 +62,7 @@ def get_job_status(
     db: Session = Depends(get_db)
 ):
     job = db.query(Job).filter(Job.id == tracking_id, Job.user_id == api_key.user_id).first()
-    
+
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
