@@ -58,7 +58,7 @@ def transcode_video_task(self, job_id: str):
             )
 
             print(f"Uploading transcoded video to storage")
-            bucket_name = settings.S3_BUCKET_NAME
+            bucket_name = settings.R2_BUCKET_NAME
             base_s3_prefix = f"transcoded/{job_id}"
 
             audio_extracted = False
@@ -99,7 +99,7 @@ def transcode_video_task(self, job_id: str):
                 )
 
             if settings.R2_ACCOUNT_ID:
-                public_url = f"https://{settings.S3_BUCKET_NAME}.{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{object_key}"
+                public_url = f"https://{settings.R2_BUCKET_NAME}.{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{object_key}"
             else:
                 public_url = f"https://{bucket_name}.s3.amazonaws.com/{object_key}"
 
@@ -179,7 +179,7 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
             subtitle_path = os.path.join(temp_dir, f"subtitles_{job_id}.vtt")
 
             s3 = get_s3_client()
-            bucket_name = settings.S3_BUCKET_NAME
+            bucket_name = settings.R2_BUCKET_NAME
             base_s3_prefix = f"transcoded/{job_id}"
 
             print(f"Downloading audio from S3: {audio_s3_key}")
@@ -200,7 +200,7 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
             )
 
             if settings.R2_ACCOUNT_ID:
-                sub_url = f"https://{settings.S3_BUCKET_NAME}.{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{subtitle_key}"
+                sub_url = f"https://{settings.R2_BUCKET_NAME}.{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{subtitle_key}"
             else:
                 sub_url = f"https://{bucket_name}.s3.amazonaws.com/{subtitle_key}"
 
