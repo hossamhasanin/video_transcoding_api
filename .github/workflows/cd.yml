@@ -12,12 +12,51 @@ env:
 
 jobs:
   # ===========================================
+  # CHECK: Verify secrets are configured
+  # ===========================================
+  check-secrets:
+    name: Check Secrets Configured
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      secrets-configured: ${{ steps.check.outputs.configured }}
+    
+    steps:
+      - name: Check if deployment secrets exist
+        id: check
+        run: |
+          if [[ -z "${{ secrets.CONTROL_VPS_HOST }}" ]]; then
+            echo "⚠️  Deployment secrets not configured yet."
+            echo ""
+            echo "📋 To enable auto-deployment, add these secrets in GitHub:"
+            echo "   Repo → Settings → Secrets and variables → Actions"
+            echo ""
+            echo "   Required secrets:"
+            echo "   - CONTROL_VPS_HOST"
+            echo "   - CONTROL_VPS_USERNAME"
+            echo "   - CONTROL_VPS_SSH_KEY"
+            echo "   - WORKER_VPS_HOST"
+            echo "   - WORKER_VPS_USERNAME"
+            echo "   - WORKER_VPS_SSH_KEY"
+            echo "   - ML_VPS_HOST"
+            echo "   - ML_VPS_USERNAME"
+            echo "   - ML_VPS_SSH_KEY"
+            echo ""
+            echo "📖 See DEPLOYMENT_GUIDE.md for full setup instructions."
+            echo "configured=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Secrets are configured."
+            echo "configured=true" >> $GITHUB_OUTPUT
+          fi
+
+  # ===========================================
   # CONTROL PLANE (VPS 1) - API + Frontend + DB + Redis
   # ===========================================
   deploy-control:
     name: Deploy Control Plane
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: check-secrets
+    if: ${{ needs.check-secrets.outputs.secrets-configured == 'true' }}
     
     steps:
       - name: Checkout code
@@ -85,7 +124,8 @@ jobs:
   deploy-worker:
     name: Deploy Transcode Worker
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: check-secrets
+    if: ${{ needs.check-secrets.outputs.secrets-configured == 'true' }}
     
     steps:
       - name: Checkout code
@@ -129,7 +169,8 @@ jobs:
   deploy-ml:
     name: Deploy ML Worker
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: check-secrets
+    if: ${{ needs.check-secrets.outputs.secrets-configured == 'true' }}
     
     steps:
       - name: Checkout code
@@ -173,7 +214,7 @@ jobs:
   notify:
     name: Deployment Summary
     runs-on: ubuntu-latest
-    needs: [deploy-control, deploy-worker, deploy-ml]
+    needs: [check-secrets, deploy-control, deploy-worker, deploy-ml]
     if: always()
     
     steps:
@@ -185,6 +226,14 @@ jobs:
           echo "Branch: ${{ github.ref_name }}"
           echo "Triggered by: ${{ github.actor }}"
           echo ""
+          
+          if [[ "${{ needs.check-secrets.outputs.secrets-configured }}" != "true" ]]; then
+            echo "⚠️  Skipped: Deployment secrets not configured."
+            echo ""
+            echo "📖 See DEPLOYMENT_GUIDE.md for setup instructions."
+            exit 0
+          fi
+          
           echo "Results:"
           echo "  Control Plane: ${{ needs.deploy-control.result }}"
           echo "  Transcode Worker: ${{ needs.deploy-worker.result }}"
