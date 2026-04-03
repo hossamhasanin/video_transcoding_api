@@ -16,6 +16,17 @@ class Settings(BaseSettings):
     # CORS - comma-separated list of allowed origins
     CORS_ORIGINS: str = "http://localhost:5173"
 
+    # JWT Authentication
+    JWT_SECRET_KEY: str = "change-me-to-a-random-secret-key"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 15
+    EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 24
+
+    # Frontend URL (for email links)
+    FRONTEND_URL: str = "http://localhost:5173"
+
     # Storage (Cloudflare R2 / S3)
     R2_ACCOUNT_ID: str = ""
     R2_ACCESS_KEY_ID: str = ""

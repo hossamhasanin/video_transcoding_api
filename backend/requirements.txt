@@ -11,6 +11,8 @@ pydantic-settings>=2.2.0
 python-multipart>=0.0.9
 psycopg2-binary>=2.9.9
 passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+pydantic[email]>=2.6.0
 requests>=2.31.0
 slowapi>=0.1.9
 whisperx @ git+https://github.com/m-bain/whisperx.git
