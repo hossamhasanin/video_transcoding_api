@@ -1,5 +1,6 @@
 import os
 import uuid
+import time
 import tempfile
 import requests
 import re
@@ -13,8 +14,23 @@ from app.core.storage import get_s3_client, upload_directory_to_s3
 from app.core.config import settings
 
 
+def _get_dir_size(path: str) -> int:
+    """Calculate total size of all files in a directory (for HLS output)."""
+    total = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if os.path.isfile(fp):
+                total += os.path.getsize(fp)
+    return total
+
+
 @celery_app.task(name="transcode_video", bind=True, max_retries=3)
 def transcode_video_task(self, job_id: str):
+    start_time = time.time()
+    source_size = 0
+    output_size = 0
+
     db = SessionLocal()
     try:
         job = db.query(Job).filter(Job.id == job_id).first()
@@ -67,6 +83,10 @@ def transcode_video_task(self, job_id: str):
                         )
                     f.write(chunk)
 
+            # Track actual source file size
+            source_size = os.path.getsize(source_file_path)
+            print(f"Source file size: {source_size} bytes ({source_size / (1024*1024):.1f}MB)")
+
             print(
                 f"Starting transcode for job {job_id} with format {output_format} and preset {preset}"
             )
@@ -76,6 +96,13 @@ def transcode_video_task(self, job_id: str):
                 output_format=output_format,
                 preset_name=preset,
             )
+
+            # Track output file size
+            if output_format == "hls":
+                output_size = _get_dir_size(output_path)
+            else:
+                output_size = os.path.getsize(output_path)
+            print(f"Output size: {output_size} bytes ({output_size / (1024*1024):.1f}MB)")
 
             print(f"Uploading transcoded video to storage")
             bucket_name = settings.R2_BUCKET_NAME
@@ -123,11 +150,18 @@ def transcode_video_task(self, job_id: str):
             else:
                 public_url = f"https://{bucket_name}.s3.amazonaws.com/{object_key}"
 
+        # Calculate processing duration
+        processing_duration = time.time() - start_time
+        print(f"Job {job_id} transcode completed in {processing_duration:.1f} seconds")
+
         db_completion = SessionLocal()
         try:
             job_complete = db_completion.query(Job).filter(Job.id == job_id).first()
             if job_complete:
                 job_complete.output_url = public_url
+                job_complete.source_size_bytes = source_size
+                job_complete.output_size_bytes = output_size
+                job_complete.processing_duration_seconds = round(processing_duration, 2)
                 if not (generate_subtitles and audio_extracted):
                     job_complete.status = "completed"
                 db_completion.commit()
@@ -171,6 +205,9 @@ def transcode_video_task(self, job_id: str):
                 if job_fail:
                     job_fail.status = "failed"
                     job_fail.error_message = error_message
+                    # Still track what we know
+                    if source_size > 0:
+                        job_fail.source_size_bytes = source_size
                     db_fail.commit()
             finally:
                 db_fail.close()

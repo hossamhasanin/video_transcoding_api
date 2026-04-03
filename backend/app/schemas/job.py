@@ -20,6 +20,9 @@ class JobResponse(BaseModel):
     output_format: str
     generate_subtitles: bool
     subtitle_url: Optional[str] = None
+    source_size_bytes: Optional[int] = None
+    output_size_bytes: Optional[int] = None
+    processing_duration_seconds: Optional[float] = None
     created_at: datetime
     updated_at: datetime
 

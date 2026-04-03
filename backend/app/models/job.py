@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, BigInteger, Float
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -23,6 +23,12 @@ class Job(Base):
     output_format = Column(String(20), nullable=False, default="mp4")
     generate_subtitles = Column(Boolean, nullable=False, default=False)
     subtitle_url = Column(String(2048), nullable=True)
+
+    # Real usage tracking fields
+    source_size_bytes = Column(BigInteger, nullable=True)  # Size of the original source file
+    output_size_bytes = Column(BigInteger, nullable=True)  # Size of the transcoded output
+    processing_duration_seconds = Column(Float, nullable=True)  # Time taken to transcode
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
