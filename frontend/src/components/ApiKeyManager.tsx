@@ -31,35 +31,35 @@ function ApiKeyManager(): React.ReactElement {
   const isMutating = isCreating || isRevoking
 
   return (
-    <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+    <div className="bg-white p-5 rounded-lg shadow-card">
       {error && (
-        <div style={{ background: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '4px', marginBottom: '20px' }}>
+        <div className="bg-danger-bg text-danger-text p-2.5 rounded mb-5">
           {(error as any).response?.data?.detail ?? error.message}
         </div>
       )}
 
       {createdKey && (
-        <div style={{ background: '#d4edda', color: '#155724', padding: '10px', borderRadius: '4px', marginBottom: '20px' }}>
+        <div className="bg-success-bg text-success-text p-2.5 rounded mb-5">
           <strong>New API Key Created!</strong> Please copy it now — you won&apos;t be able to see it again:
           <br />
-          <code style={{ wordBreak: 'break-all' }}>{createdKey}</code>
-          <button style={{ marginLeft: '10px' }} onClick={() => setCreatedKey(null)}>Dismiss</button>
+          <code className="break-all">{createdKey}</code>
+          <button className="ml-2.5" onClick={() => setCreatedKey(null)}>Dismiss</button>
         </div>
       )}
 
-      <form onSubmit={handleCreate} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+      <form onSubmit={handleCreate} className="flex gap-2.5 mb-5">
         <input
           type="text"
           value={newKeyName}
           onChange={(e) => setNewKeyName(e.target.value)}
           placeholder="New Key Name (e.g., Production, Staging)"
           required
-          style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px', flex: 1 }}
+          className="p-2 border border-[#ddd] rounded flex-1"
         />
         <button
           type="submit"
           disabled={isMutating}
-          style={{ padding: '8px 16px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: isMutating ? 'not-allowed' : 'pointer' }}
+          className={`px-4 py-2 bg-brand text-white border-none rounded ${isMutating ? 'cursor-not-allowed' : 'cursor-pointer'}`}
         >
           {isCreating ? 'Creating...' : 'Create Key'}
         </button>
@@ -68,26 +68,26 @@ function ApiKeyManager(): React.ReactElement {
       {isLoading ? (
         <p>Loading API keys...</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="w-full border-collapse">
           <thead>
-            <tr style={{ background: '#f8f9fa', textAlign: 'left' }}>
-              <th style={{ padding: '12px', borderBottom: '1px solid #ddd' }}>Name</th>
-              <th style={{ padding: '12px', borderBottom: '1px solid #ddd' }}>Prefix</th>
-              <th style={{ padding: '12px', borderBottom: '1px solid #ddd' }}>Created</th>
-              <th style={{ padding: '12px', borderBottom: '1px solid #ddd' }}>Actions</th>
+            <tr className="bg-[#f8f9fa] text-left">
+              <th className="p-3 border-b border-[#ddd]">Name</th>
+              <th className="p-3 border-b border-[#ddd]">Prefix</th>
+              <th className="p-3 border-b border-[#ddd]">Created</th>
+              <th className="p-3 border-b border-[#ddd]">Actions</th>
             </tr>
           </thead>
           <tbody>
             {keys.map((k) => (
               <tr key={k.id}>
-                <td style={{ padding: '12px', borderBottom: '1px solid #ddd' }}>{k.name}</td>
-                <td style={{ padding: '12px', borderBottom: '1px solid #ddd' }}><code>{k.key_prefix}...</code></td>
-                <td style={{ padding: '12px', borderBottom: '1px solid #ddd' }}>{new Date(k.created_at).toLocaleDateString()}</td>
-                <td style={{ padding: '12px', borderBottom: '1px solid #ddd' }}>
+                <td className="p-3 border-b border-[#ddd]">{k.name}</td>
+                <td className="p-3 border-b border-[#ddd]"><code>{k.key_prefix}...</code></td>
+                <td className="p-3 border-b border-[#ddd]">{new Date(k.created_at).toLocaleDateString()}</td>
+                <td className="p-3 border-b border-[#ddd]">
                   <button
                     onClick={() => handleRevoke(k.id)}
                     disabled={isMutating}
-                    style={{ padding: '6px 12px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: isMutating ? 'not-allowed' : 'pointer' }}
+                    className={`px-3 py-1.5 bg-danger text-white border-none rounded ${isMutating ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     {isRevoking ? 'Revoking...' : 'Revoke'}
                   </button>
@@ -96,7 +96,7 @@ function ApiKeyManager(): React.ReactElement {
             ))}
             {keys.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ padding: '12px', textAlign: 'center', color: '#666' }}>No API keys yet. Create one to get started.</td>
+                <td colSpan={4} className="p-3 text-center text-[#666]">No API keys yet. Create one to get started.</td>
               </tr>
             )}
           </tbody>

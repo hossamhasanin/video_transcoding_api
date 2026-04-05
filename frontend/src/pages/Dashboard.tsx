@@ -10,7 +10,7 @@ function Dashboard(): React.ReactElement {
       <h1>Dashboard Overview</h1>
 
       {error && (
-        <div style={{ background: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '4px', marginBottom: '20px' }}>
+        <div className="bg-danger-bg text-danger-text p-2.5 rounded mb-5">
           {(error as any).response?.data?.detail ?? error.message}
         </div>
       )}
@@ -18,26 +18,26 @@ function Dashboard(): React.ReactElement {
       {isLoading ? (
         <p>Loading stats...</p>
       ) : stats ? (
-        <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap' }}>
-          <div style={cardStyle}>
+        <div className="flex gap-5 mb-10 flex-wrap">
+          <div className="bg-white p-5 rounded-lg shadow-card flex-[1_1_150px] text-center min-w-[150px]">
             <h3>Total Jobs</h3>
-            <p style={statStyle}>{stats.total_jobs}</p>
+            <p className="text-2xl font-bold text-brand">{stats.total_jobs}</p>
           </div>
-          <div style={cardStyle}>
+          <div className="bg-white p-5 rounded-lg shadow-card flex-[1_1_150px] text-center min-w-[150px]">
             <h3>Completed</h3>
-            <p style={statStyle}>{stats.completed_jobs}</p>
+            <p className="text-2xl font-bold text-brand">{stats.completed_jobs}</p>
           </div>
-          <div style={cardStyle}>
+          <div className="bg-white p-5 rounded-lg shadow-card flex-[1_1_150px] text-center min-w-[150px]">
             <h3>Failed</h3>
-            <p style={statStyle}>{stats.failed_jobs}</p>
+            <p className="text-2xl font-bold text-brand">{stats.failed_jobs}</p>
           </div>
-          <div style={cardStyle}>
+          <div className="bg-white p-5 rounded-lg shadow-card flex-[1_1_150px] text-center min-w-[150px]">
             <h3>Storage Used</h3>
-            <p style={statStyle}>{(stats.storage_used_bytes / (1024 * 1024)).toFixed(2)} MB</p>
+            <p className="text-2xl font-bold text-brand">{(stats.storage_used_bytes / (1024 * 1024)).toFixed(2)} MB</p>
           </div>
-          <div style={cardStyle}>
+          <div className="bg-white p-5 rounded-lg shadow-card flex-[1_1_150px] text-center min-w-[150px]">
             <h3>Processed Time</h3>
-            <p style={statStyle}>{stats.processed_minutes} mins</p>
+            <p className="text-2xl font-bold text-brand">{stats.processed_minutes} mins</p>
           </div>
         </div>
       ) : (
@@ -48,22 +48,6 @@ function Dashboard(): React.ReactElement {
       <ApiKeyManager />
     </div>
   )
-}
-
-const cardStyle: React.CSSProperties = {
-  background: 'white',
-  padding: '20px',
-  borderRadius: '8px',
-  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  flex: '1 1 150px',
-  textAlign: 'center',
-  minWidth: '150px',
-}
-
-const statStyle: React.CSSProperties = {
-  fontSize: '24px',
-  fontWeight: 'bold',
-  color: '#007bff',
 }
 
 export default Dashboard

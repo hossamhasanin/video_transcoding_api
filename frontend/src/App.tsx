@@ -17,33 +17,33 @@ function AppContent(): React.ReactElement {
 
   return (
     <Router>
-      <div className="layout">
-        <nav className="sidebar">
-          <h2>TranscodeFlow</h2>
+      <div className="flex min-h-screen font-sans bg-page-bg text-[#333]">
+        <nav className="w-[250px] bg-sidebar text-white p-5 flex flex-col">
+          <h2 className="mt-0 text-2xl">TranscodeFlow</h2>
 
           {isAuthenticated ? (
             <>
-              <div className="user-info">
-                <span className="user-email">{user?.email}</span>
+              <div className="mb-5 p-3 bg-sidebar-user rounded">
+                <span className="block text-sm text-[#ddd] break-all">{user?.email}</span>
                 {!user?.email_verified && (
-                  <span className="badge badge-warning">Unverified</span>
+                  <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold mt-1 bg-warning text-warning-text">Unverified</span>
                 )}
               </div>
-              <ul>
-                <li><Link to="/">Dashboard</Link></li>
-                <li><Link to="/settings">Settings</Link></li>
+              <ul className="list-none p-0 flex-1">
+                <li className="mb-2.5"><Link to="/" className="text-white no-underline text-base block px-3 py-2 rounded transition-colors hover:bg-sidebar-hover">Dashboard</Link></li>
+                <li className="mb-2.5"><Link to="/settings" className="text-white no-underline text-base block px-3 py-2 rounded transition-colors hover:bg-sidebar-hover">Settings</Link></li>
               </ul>
-              <button onClick={logout} className="logout-btn">Sign Out</button>
+              <button onClick={logout} className="mt-auto px-4 py-2 bg-danger text-white border-none rounded cursor-pointer w-full text-sm hover:bg-danger-dark transition-colors">Sign Out</button>
             </>
           ) : (
-            <ul>
-              <li><Link to="/login">Sign In</Link></li>
-              <li><Link to="/register">Create Account</Link></li>
+            <ul className="list-none p-0 flex-1">
+              <li className="mb-2.5"><Link to="/login" className="text-white no-underline text-base block px-3 py-2 rounded transition-colors hover:bg-sidebar-hover">Sign In</Link></li>
+              <li className="mb-2.5"><Link to="/register" className="text-white no-underline text-base block px-3 py-2 rounded transition-colors hover:bg-sidebar-hover">Create Account</Link></li>
             </ul>
           )}
         </nav>
 
-        <main className="content">
+        <main className="flex-1 p-10">
           <Routes>
             {/* Auth routes */}
             <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <Login />} />
@@ -73,7 +73,7 @@ function App(): React.ReactElement {
 
   if (!hasHydrated) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div className="flex justify-center items-center h-screen">
         <p>Loading...</p>
       </div>
     )

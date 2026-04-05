@@ -13,7 +13,7 @@ function ProtectedRoute({ children }: ProtectedRouteProps): React.ReactElement {
 
   if (!hasHydrated) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div className="flex justify-center items-center h-screen">
         <p>Loading...</p>
       </div>
     )

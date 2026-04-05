@@ -43,34 +43,34 @@ function VerifyEmail(): React.ReactElement {
 
   if (status === 'verifying') {
     return (
-      <div className="auth-page">
-        <div className="auth-card">
-          <h1>Verifying...</h1>
-          <p className="auth-subtitle">Please wait while we verify your email.</p>
+      <div className="flex justify-center items-center min-h-[80vh]">
+        <div className="bg-white p-10 rounded-xl shadow-auth-card w-full max-w-auth">
+          <h1 className="m-0 mb-2 text-[28px] text-sidebar">Verifying...</h1>
+          <p className="text-[#666] mb-6 text-[15px]">Please wait while we verify your email.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1>{status === 'success' ? 'Email Verified!' : 'Verification Failed'}</h1>
-        <p className="auth-subtitle">{message}</p>
+    <div className="flex justify-center items-center min-h-[80vh]">
+      <div className="bg-white p-10 rounded-xl shadow-auth-card w-full max-w-auth">
+        <h1 className="m-0 mb-2 text-[28px] text-sidebar">{status === 'success' ? 'Email Verified!' : 'Verification Failed'}</h1>
+        <p className="text-[#666] mb-6 text-[15px]">{message}</p>
 
         {status === 'success' ? (
-          <Link to="/" className="auth-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+          <Link to="/" className="block text-center no-underline w-full py-3 bg-brand text-white border-none rounded-md text-base font-medium hover:bg-brand-dark transition-colors">
             Go to Dashboard
           </Link>
         ) : (
           <>
             {isAuthenticated && (
-              <button onClick={handleResend} className="auth-btn">
+              <button onClick={handleResend} className="w-full py-3 bg-brand text-white border-none rounded-md text-base font-medium cursor-pointer transition-colors hover:bg-brand-dark disabled:bg-muted disabled:cursor-not-allowed">
                 Resend Verification Email
               </button>
             )}
             {!isAuthenticated && (
-              <Link to="/login" className="auth-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+              <Link to="/login" className="block text-center no-underline w-full py-3 bg-brand text-white border-none rounded-md text-base font-medium hover:bg-brand-dark transition-colors">
                 Sign In
               </Link>
             )}
