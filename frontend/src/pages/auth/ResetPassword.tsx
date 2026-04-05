@@ -1,38 +1,39 @@
-import React, { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useAuthStore } from '../../store/authStore'
 
-function ResetPassword() {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+function ResetPassword(): React.ReactElement {
+  const [searchParams] = useSearchParams()
+  const token: string | null = searchParams.get('token')
 
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { resetPassword } = useAuth();
+  const [password, setPassword] = useState<string>('')
+  const [confirmPassword, setConfirmPassword] = useState<string>('')
+  const [success, setSuccess] = useState<boolean>(false)
+  const [error, setError] = useState<string>('')
+  const [loading, setLoading] = useState<boolean>(false)
+  const resetPassword = useAuthStore((s) => s.resetPassword)
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault()
+    setError('')
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+      setError('Passwords do not match')
+      return
     }
 
-    setLoading(true);
+    setLoading(true)
 
     try {
-      await resetPassword(token, password);
-      setSuccess(true);
+      await resetPassword(token!, password)
+      setSuccess(true)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Reset failed. The link may have expired.');
+      const e = err as { response?: { data?: { detail?: string } } }
+      setError(e.response?.data?.detail || 'Reset failed. The link may have expired.')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   if (!token) {
     return (
@@ -45,7 +46,7 @@ function ResetPassword() {
           </Link>
         </div>
       </div>
-    );
+    )
   }
 
   if (success) {
@@ -59,7 +60,7 @@ function ResetPassword() {
           </Link>
         </div>
       </div>
-    );
+    )
   }
 
   const passwordRequirements = [
@@ -67,8 +68,8 @@ function ResetPassword() {
     { test: /[A-Z]/.test(password), text: 'One uppercase letter' },
     { test: /[a-z]/.test(password), text: 'One lowercase letter' },
     { test: /\d/.test(password), text: 'One number' },
-    { test: /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;'/~`]/.test(password), text: 'One special character' },
-  ];
+    { test: /[!@#$%^&*(),.?":{}|<>_\-+=[\]\\;'/~`]/.test(password), text: 'One special character' },
+  ]
 
   return (
     <div className="auth-page">
@@ -123,7 +124,7 @@ function ResetPassword() {
         </form>
       </div>
     </div>
-  );
+  )
 }
 
-export default ResetPassword;
+export default ResetPassword

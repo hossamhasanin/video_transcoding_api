@@ -1,17 +1,19 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import Dashboard from './pages/Dashboard';
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import ResetPassword from './pages/auth/ResetPassword';
-import VerifyEmail from './pages/auth/VerifyEmail';
-import './index.css';
+import React from 'react'
+import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom'
+import { useAuthStore, selectIsAuthenticated } from './store/authStore'
+import ProtectedRoute from './components/ProtectedRoute'
+import Dashboard from './pages/Dashboard'
+import Login from './pages/auth/Login'
+import Register from './pages/auth/Register'
+import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword from './pages/auth/ResetPassword'
+import VerifyEmail from './pages/auth/VerifyEmail'
+import './index.css'
 
-function AppContent() {
-  const { isAuthenticated, user, logout } = useAuth();
+function AppContent(): React.ReactElement {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated)
+  const user = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
 
   return (
     <Router>
@@ -63,15 +65,21 @@ function AppContent() {
         </main>
       </div>
     </Router>
-  );
+  )
 }
 
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
+function App(): React.ReactElement {
+  const hasHydrated = useAuthStore((s) => s._hasHydrated)
+
+  if (!hasHydrated) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  return <AppContent />
 }
 
-export default App;
+export default App

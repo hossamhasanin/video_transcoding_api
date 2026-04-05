@@ -1,33 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import api from '../api';
-import ApiKeyManager from '../components/ApiKeyManager';
+import React from 'react'
+import ApiKeyManager from '../components/ApiKeyManager'
+import { useUsageStats } from '../hooks/useUsageStats'
 
-function Dashboard() {
-  const [stats, setStats] = useState(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    api.get('/usage')
-      .then((res) => {
-        setStats(res.data);
-        setError('');
-      })
-      .catch((err) => {
-        setError('Failed to load stats.');
-        console.error(err);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+function Dashboard(): React.ReactElement {
+  const { stats, error, isLoading } = useUsageStats()
 
   return (
     <div>
       <h1>Dashboard Overview</h1>
 
-      {error && <div style={{ color: 'red', marginBottom: '20px' }}>{error}</div>}
+      {error && (
+        <div style={{ background: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '4px', marginBottom: '20px' }}>
+          {(error as any).response?.data?.detail ?? error.message}
+        </div>
+      )}
 
-      {loading ? (
+      {isLoading ? (
         <p>Loading stats...</p>
       ) : stats ? (
         <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap' }}>
@@ -59,10 +47,10 @@ function Dashboard() {
       <h2>API Keys</h2>
       <ApiKeyManager />
     </div>
-  );
+  )
 }
 
-const cardStyle = {
+const cardStyle: React.CSSProperties = {
   background: 'white',
   padding: '20px',
   borderRadius: '8px',
@@ -70,12 +58,12 @@ const cardStyle = {
   flex: '1 1 150px',
   textAlign: 'center',
   minWidth: '150px',
-};
+}
 
-const statStyle = {
+const statStyle: React.CSSProperties = {
   fontSize: '24px',
   fontWeight: 'bold',
   color: '#007bff',
-};
+}
 
-export default Dashboard;
+export default Dashboard

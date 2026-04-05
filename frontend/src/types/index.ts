@@ -1,0 +1,56 @@
+// ---------------------------------------------------------------------------
+// Domain entities (mirrors backend response shapes)
+// ---------------------------------------------------------------------------
+
+export interface User {
+  id: string
+  email: string
+  full_name: string | null
+  email_verified: boolean
+}
+
+export interface Tokens {
+  access_token: string
+  refresh_token: string
+}
+
+export interface ApiKey {
+  id: string
+  name: string
+  key_prefix: string
+  created_at: string        // ISO 8601
+}
+
+export interface CreateApiKeyResponse {
+  key_value: string         // shown once at creation; not stored
+}
+
+export interface UsageStats {
+  total_jobs: number
+  completed_jobs: number
+  failed_jobs: number
+  storage_used_bytes: number
+  processed_minutes: number
+}
+
+// ---------------------------------------------------------------------------
+// Auth store interface (also exported from authStore.ts; imported from types
+// when needed outside the store module to avoid circular imports)
+// ---------------------------------------------------------------------------
+
+export interface AuthState {
+  user: User | null
+  tokens: Tokens | null
+  loading: boolean
+  _hasHydrated: boolean
+  setHasHydrated: (value: boolean) => void
+  login: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, fullName?: string) => Promise<void>
+  logout: () => void
+  refreshProfile: () => Promise<User | undefined>
+  forgotPassword: (email: string) => Promise<unknown>
+  resetPassword: (token: string, newPassword: string) => Promise<unknown>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<unknown>
+  verifyEmail: (token: string) => Promise<unknown>
+  resendVerification: () => Promise<unknown>
+}

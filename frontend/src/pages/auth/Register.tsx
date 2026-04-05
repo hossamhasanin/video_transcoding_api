@@ -1,53 +1,54 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../../store/authStore'
 
-function Register() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
-  const navigate = useNavigate();
+function Register(): React.ReactElement {
+  const [email, setEmail] = useState<string>('')
+  const [password, setPassword] = useState<string>('')
+  const [confirmPassword, setConfirmPassword] = useState<string>('')
+  const [fullName, setFullName] = useState<string>('')
+  const [error, setError] = useState<string>('')
+  const [loading, setLoading] = useState<boolean>(false)
+  const register = useAuthStore((s) => s.register)
+  const navigate = useNavigate()
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault()
+    setError('')
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+      setError('Passwords do not match')
+      return
     }
 
-    setLoading(true);
+    setLoading(true)
 
     try {
-      await register(email, password, fullName);
-      navigate('/', { replace: true });
+      await register(email, password, fullName)
+      navigate('/', { replace: true })
     } catch (err) {
-      const detail = err.response?.data?.detail;
+      const e = err as { response?: { data?: { detail?: string | Array<{ msg: string }> } } }
+      const detail = e.response?.data?.detail
       if (Array.isArray(detail)) {
         // Pydantic validation errors
-        setError(detail.map((d) => d.msg).join('. '));
+        setError(detail.map((d) => d.msg).join('. '))
       } else if (typeof detail === 'string') {
-        setError(detail);
+        setError(detail)
       } else {
-        setError('Registration failed. Please try again.');
+        setError('Registration failed. Please try again.')
       }
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const passwordRequirements = [
     { test: password.length >= 8, text: 'At least 8 characters' },
     { test: /[A-Z]/.test(password), text: 'One uppercase letter' },
     { test: /[a-z]/.test(password), text: 'One lowercase letter' },
     { test: /\d/.test(password), text: 'One number' },
-    { test: /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;'/~`]/.test(password), text: 'One special character' },
-  ];
+    { test: /[!@#$%^&*(),.?":{}|<>_\-+=[\]\\;'/~`]/.test(password), text: 'One special character' },
+  ]
 
   return (
     <div className="auth-page">
@@ -129,7 +130,7 @@ function Register() {
         </p>
       </div>
     </div>
-  );
+  )
 }
 
-export default Register;
+export default Register

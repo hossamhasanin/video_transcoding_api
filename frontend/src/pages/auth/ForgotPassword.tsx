@@ -1,28 +1,29 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuthStore } from '../../store/authStore'
 
-function ForgotPassword() {
-  const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { forgotPassword } = useAuth();
+function ForgotPassword(): React.ReactElement {
+  const [email, setEmail] = useState<string>('')
+  const [sent, setSent] = useState<boolean>(false)
+  const [error, setError] = useState<string>('')
+  const [loading, setLoading] = useState<boolean>(false)
+  const forgotPassword = useAuthStore((s) => s.forgotPassword)
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
 
     try {
-      await forgotPassword(email);
-      setSent(true);
+      await forgotPassword(email)
+      setSent(true)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Something went wrong. Please try again.');
+      const e = err as { response?: { data?: { detail?: string } } }
+      setError(e.response?.data?.detail || 'Something went wrong. Please try again.')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   if (sent) {
     return (
@@ -30,24 +31,24 @@ function ForgotPassword() {
         <div className="auth-card">
           <h1>Check Your Email</h1>
           <p className="auth-subtitle">
-            If an account exists with <strong>{email}</strong>, we've sent a password reset link.
+            If an account exists with <strong>{email}</strong>, we&apos;ve sent a password reset link.
           </p>
           <p className="auth-subtitle" style={{ fontSize: '14px', color: '#888' }}>
-            The link expires in 15 minutes. Check your spam folder if you don't see it.
+            The link expires in 15 minutes. Check your spam folder if you don&apos;t see it.
           </p>
           <Link to="/login" className="auth-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
             Back to Login
           </Link>
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <div className="auth-page">
       <div className="auth-card">
         <h1>Forgot Password</h1>
-        <p className="auth-subtitle">Enter your email and we'll send you a reset link</p>
+        <p className="auth-subtitle">Enter your email and we&apos;ll send you a reset link</p>
 
         {error && <div className="auth-error">{error}</div>}
 
@@ -75,7 +76,7 @@ function ForgotPassword() {
         </p>
       </div>
     </div>
-  );
+  )
 }
 
-export default ForgotPassword;
+export default ForgotPassword

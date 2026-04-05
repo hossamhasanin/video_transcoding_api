@@ -1,32 +1,30 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useAuthStore } from '../../store/authStore'
 
-function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+function Login(): React.ReactElement {
+  const [email, setEmail] = useState<string>('')
+  const [password, setPassword] = useState<string>('')
+  const [error, setError] = useState<string>('')
+  const login = useAuthStore((s) => s.login)
+  const loading = useAuthStore((s) => s.loading)
+  const navigate = useNavigate()
+  const location = useLocation()
 
-  const from = location.state?.from?.pathname || '/';
+  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/'
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault()
+    setError('')
 
     try {
-      await login(email, password);
-      navigate(from, { replace: true });
+      await login(email, password)
+      navigate(from, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
-    } finally {
-      setLoading(false);
+      const e = err as { response?: { data?: { detail?: string } } }
+      setError(e.response?.data?.detail || 'Login failed. Please check your credentials.')
     }
-  };
+  }
 
   return (
     <div className="auth-page">
@@ -72,11 +70,11 @@ function Login() {
         </form>
 
         <p className="auth-footer">
-          Don't have an account? <Link to="/register" className="auth-link">Create one</Link>
+          Don&apos;t have an account? <Link to="/register" className="auth-link">Create one</Link>
         </p>
       </div>
     </div>
-  );
+  )
 }
 
-export default Login;
+export default Login
