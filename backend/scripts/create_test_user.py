@@ -13,12 +13,14 @@ from app.models.user import User
 from app.models.api_key import ApiKey
 from app.api.dependencies import get_hash
 
+
 def generate_key():
     alphabet = string.ascii_letters + string.digits
-    raw_key = ''.join(secrets.choice(alphabet) for i in range(32))
+    raw_key = "".join(secrets.choice(alphabet) for i in range(32))
     prefix = "vf_"
     actual_key = prefix + raw_key
     return actual_key, prefix
+
 
 def create_test_user():
     db = SessionLocal()
@@ -42,18 +44,19 @@ def create_test_user():
             user_id=user.id,
             key_hash=hashed_key,
             key_prefix=prefix,
-            name="Test Script Key"
+            name="Test Script Key",
         )
         db.add(api_key)
         db.commit()
-        
+
         print("-" * 40)
         print("API KEY GENERATED (Save this, it will not be shown again):")
         print(actual_key)
         print("-" * 40)
-        
+
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     create_test_user()

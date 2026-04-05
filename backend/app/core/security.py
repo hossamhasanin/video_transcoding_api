@@ -24,7 +24,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(user_id: str, email: str) -> str:
     """Create a short-lived JWT access token."""
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
     payload = {
         "sub": str(user_id),
         "email": email,
@@ -32,24 +34,32 @@ def create_access_token(user_id: str, email: str) -> str:
         "exp": expire,
         "iat": datetime.now(timezone.utc),
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 def create_refresh_token(user_id: str) -> str:
     """Create a long-lived JWT refresh token."""
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
     payload = {
         "sub": str(user_id),
         "type": "refresh",
         "exp": expire,
         "iat": datetime.now(timezone.utc),
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 def create_password_reset_token(user_id: str, email: str) -> str:
     """Create a short-lived token for password reset."""
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+    )
     payload = {
         "sub": str(user_id),
         "email": email,
@@ -57,12 +67,16 @@ def create_password_reset_token(user_id: str, email: str) -> str:
         "exp": expire,
         "iat": datetime.now(timezone.utc),
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 def create_email_verification_token(user_id: str, email: str) -> str:
     """Create a token for email verification."""
-    expire = datetime.now(timezone.utc) + timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
+    expire = datetime.now(timezone.utc) + timedelta(
+        hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS
+    )
     payload = {
         "sub": str(user_id),
         "email": email,
@@ -70,7 +84,9 @@ def create_email_verification_token(user_id: str, email: str) -> str:
         "exp": expire,
         "iat": datetime.now(timezone.utc),
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 def decode_token(token: str, expected_type: Optional[str] = None) -> Dict[str, Any]:
@@ -79,7 +95,9 @@ def decode_token(token: str, expected_type: Optional[str] = None) -> Dict[str, A
     Returns the payload dict if valid, raises JWTError otherwise.
     """
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(
+            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
         if expected_type and payload.get("type") != expected_type:
             raise JWTError(f"Invalid token type: expected {expected_type}")
         return payload
@@ -98,5 +116,7 @@ def generate_hmac_signature(payload: str, secret: str) -> str:
     secret_bytes = secret.encode("utf-8")
     payload_bytes = payload.encode("utf-8")
 
-    signature = hmac.new(key=secret_bytes, msg=payload_bytes, digestmod=hashlib.sha256).hexdigest()
+    signature = hmac.new(
+        key=secret_bytes, msg=payload_bytes, digestmod=hashlib.sha256
+    ).hexdigest()
     return signature

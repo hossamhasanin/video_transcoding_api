@@ -1,21 +1,23 @@
 import os
 import gc
 
+
 def format_timestamp(seconds: float) -> str:
     hours = int(seconds / 3600)
     minutes = int((seconds % 3600) / 60)
     secs = seconds % 60
     return f"{hours:02d}:{minutes:02d}:{secs:06.3f}"
 
+
 def generate_subtitles_from_audio(audio_path: str, output_vtt_path: str) -> bool:
     """
     Speech-to-text utility that generates a WebVTT file from an audio file using WhisperX.
-    Optimized for CPU inference. Models are loaded dynamically and immediately 
+    Optimized for CPU inference. Models are loaded dynamically and immediately
     purged from memory to save server resources.
     """
     try:
         import whisperx
-        
+
         print("Loading WhisperX model onto CPU...")
         # Load 'base' model with 'int8' directly in function scope to allow garbage collection later
         model = whisperx.load_model("base", "cpu", compute_type="int8")
@@ -30,7 +32,7 @@ def generate_subtitles_from_audio(audio_path: str, output_vtt_path: str) -> bool
 
         language = result["language"]
         print(f"Detected language: {language}")
-        
+
         # Free base model explicitly before loading alignment model
         del model
         gc.collect()

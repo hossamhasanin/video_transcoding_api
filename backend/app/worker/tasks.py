@@ -85,7 +85,9 @@ def transcode_video_task(self, job_id: str):
 
             # Track actual source file size
             source_size = os.path.getsize(source_file_path)
-            print(f"Source file size: {source_size} bytes ({source_size / (1024*1024):.1f}MB)")
+            print(
+                f"Source file size: {source_size} bytes ({source_size / (1024*1024):.1f}MB)"
+            )
 
             print(
                 f"Starting transcode for job {job_id} with format {output_format} and preset {preset}"
@@ -102,7 +104,9 @@ def transcode_video_task(self, job_id: str):
                 output_size = _get_dir_size(output_path)
             else:
                 output_size = os.path.getsize(output_path)
-            print(f"Output size: {output_size} bytes ({output_size / (1024*1024):.1f}MB)")
+            print(
+                f"Output size: {output_size} bytes ({output_size / (1024*1024):.1f}MB)"
+            )
 
             print(f"Uploading transcoded video to storage")
             bucket_name = settings.R2_BUCKET_NAME

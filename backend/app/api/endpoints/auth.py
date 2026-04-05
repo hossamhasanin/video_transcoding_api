@@ -53,6 +53,7 @@ def _get_current_user(
 
 # ---- Registration ----
 
+
 @router.post(
     "/register",
     response_model=AuthResponse,
@@ -96,6 +97,7 @@ def register(request: Request, user_in: UserRegister, db: Session = Depends(get_
 
 # ---- Login ----
 
+
 @router.post(
     "/login",
     response_model=AuthResponse,
@@ -133,13 +135,16 @@ def login(request: Request, user_in: UserLogin, db: Session = Depends(get_db)):
 
 # ---- Refresh Token ----
 
+
 @router.post(
     "/refresh",
     response_model=TokenResponse,
     summary="Refresh access token",
 )
 @limiter.limit("20/minute")
-def refresh_token(request: Request, token_in: RefreshTokenRequest, db: Session = Depends(get_db)):
+def refresh_token(
+    request: Request, token_in: RefreshTokenRequest, db: Session = Depends(get_db)
+):
     try:
         payload = decode_token(token_in.refresh_token, expected_type="refresh")
     except JWTError:
@@ -210,6 +215,7 @@ def get_profile(current_user: User = Depends(get_current_user)):
 
 # ---- Change Password (authenticated) ----
 
+
 @router.post(
     "/change-password",
     response_model=MessageResponse,
@@ -242,6 +248,7 @@ def change_password(
 
 # ---- Forgot Password ----
 
+
 @router.post(
     "/forgot-password",
     response_model=MessageResponse,
@@ -257,7 +264,9 @@ def forgot_password(
 
     # Always return success to prevent email enumeration
     if not user:
-        return MessageResponse(message="If an account exists with this email, a reset link has been sent")
+        return MessageResponse(
+            message="If an account exists with this email, a reset link has been sent"
+        )
 
     # Generate reset token
     reset_token = create_password_reset_token(str(user.id), user.email)
@@ -267,10 +276,13 @@ def forgot_password(
     reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
     print(f"[PASSWORD RESET] Link for {user.email}: {reset_link}")
 
-    return MessageResponse(message="If an account exists with this email, a reset link has been sent")
+    return MessageResponse(
+        message="If an account exists with this email, a reset link has been sent"
+    )
 
 
 # ---- Reset Password ----
+
 
 @router.post(
     "/reset-password",
@@ -303,10 +315,13 @@ def reset_password(
     user.password_hash = hash_password(reset_in.new_password)
     db.commit()
 
-    return MessageResponse(message="Password has been reset successfully. You can now log in.")
+    return MessageResponse(
+        message="Password has been reset successfully. You can now log in."
+    )
 
 
 # ---- Verify Email ----
+
 
 @router.get(
     "/verify-email",
@@ -343,6 +358,7 @@ def verify_email(request: Request, token: str, db: Session = Depends(get_db)):
 
 # ---- Resend Verification Email ----
 
+
 @router.post(
     "/resend-verification",
     response_model=MessageResponse,
@@ -356,7 +372,9 @@ def resend_verification(
     if current_user.email_verified:
         return MessageResponse(message="Email already verified")
 
-    verification_token = create_email_verification_token(str(current_user.id), current_user.email)
+    verification_token = create_email_verification_token(
+        str(current_user.id), current_user.email
+    )
     verify_link = f"{settings.FRONTEND_URL}/verify-email?token={verification_token}"
 
     # TODO: Send verification email

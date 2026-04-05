@@ -21,7 +21,9 @@ app = FastAPI(
 )
 
 # Parse CORS origins from comma-separated env var
-cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+cors_origins = [
+    origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,

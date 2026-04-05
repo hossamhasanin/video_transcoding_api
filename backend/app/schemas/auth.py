@@ -4,8 +4,8 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
-
 # --- Request schemas ---
+
 
 class UserRegister(BaseModel):
     email: EmailStr
@@ -99,6 +99,7 @@ class ChangePasswordRequest(BaseModel):
 
 
 # --- Response schemas ---
+
 
 class TokenResponse(BaseModel):
     access_token: str

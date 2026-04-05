@@ -18,14 +18,14 @@ router = APIRouter()
     response_model=JobResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Submit a new transcoding job",
-    description="Queues a video for transcoding into MP4 or HLS formats. Enforces rate limits and concurrent processing limits."
+    description="Queues a video for transcoding into MP4 or HLS formats. Enforces rate limits and concurrent processing limits.",
 )
 @limiter.limit("10/minute")
 def create_job(
     request: Request,
     job_in: JobCreate,
     api_key: ApiKey = Depends(check_concurrent_jobs_limit),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     # Create DB Record
     new_job = Job(
@@ -36,7 +36,7 @@ def create_job(
         output_format=job_in.output_format,
         webhook_url=str(job_in.webhook_url) if job_in.webhook_url else None,
         generate_subtitles=job_in.generate_subtitles,
-        status="pending"
+        status="pending",
     )
     db.add(new_job)
     db.commit()
@@ -52,16 +52,20 @@ def create_job(
     "/{tracking_id}",
     response_model=JobStatusResponse,
     summary="Get job status",
-    description="Polls for the current status of a specific transcoding job."
+    description="Polls for the current status of a specific transcoding job.",
 )
 @limiter.limit("30/minute")
 def get_job_status(
     request: Request,
     tracking_id: UUID,
     api_key: ApiKey = Depends(get_current_api_key),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    job = db.query(Job).filter(Job.id == tracking_id, Job.user_id == api_key.user_id).first()
+    job = (
+        db.query(Job)
+        .filter(Job.id == tracking_id, Job.user_id == api_key.user_id)
+        .first()
+    )
 
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")

@@ -22,8 +22,7 @@ def get_hash(plain_key: str) -> str:
 
 
 def get_current_api_key(
-    api_key: str = Security(api_key_header),
-    db: Session = Depends(get_db)
+    api_key: str = Security(api_key_header), db: Session = Depends(get_db)
 ) -> ApiKey:
     """
     Validates the provided API key and returns the ApiKey model instance.
@@ -39,7 +38,11 @@ def get_current_api_key(
     prefix = api_key.split("_")[0] + "_"
 
     # Find active keys with this prefix
-    db_keys = db.query(ApiKey).filter(ApiKey.key_prefix == prefix, ApiKey.is_active == True).all()
+    db_keys = (
+        db.query(ApiKey)
+        .filter(ApiKey.key_prefix == prefix, ApiKey.is_active == True)
+        .all()
+    )
 
     for db_key in db_keys:
         if verify_api_key_str(api_key, db_key.key_hash):
@@ -52,8 +55,7 @@ def get_current_api_key(
 
 
 def get_current_user(
-    api_key_obj: ApiKey = Depends(get_current_api_key),
-    db: Session = Depends(get_db)
+    api_key_obj: ApiKey = Depends(get_current_api_key), db: Session = Depends(get_db)
 ) -> User:
     """Returns the user associated with the valid API key."""
     user = db.query(User).filter(User.id == api_key_obj.user_id).first()
@@ -66,19 +68,23 @@ def get_current_user(
 
 
 def check_concurrent_jobs_limit(
-    api_key_obj: ApiKey = Depends(get_current_api_key),
-    db: Session = Depends(get_db)
+    api_key_obj: ApiKey = Depends(get_current_api_key), db: Session = Depends(get_db)
 ) -> ApiKey:
     """Enforce a maximum number of concurrent pending/processing jobs per user."""
     from app.models.job import Job
-    active_jobs_count = db.query(Job).filter(
-        Job.user_id == api_key_obj.user_id,
-        or_(Job.status == "pending", Job.status == "processing")
-    ).count()
+
+    active_jobs_count = (
+        db.query(Job)
+        .filter(
+            Job.user_id == api_key_obj.user_id,
+            or_(Job.status == "pending", Job.status == "processing"),
+        )
+        .count()
+    )
 
     if active_jobs_count >= settings.MAX_CONCURRENT_JOBS:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Concurrent job limit exceeded. Maximum allowable is {settings.MAX_CONCURRENT_JOBS}."
+            detail=f"Concurrent job limit exceeded. Maximum allowable is {settings.MAX_CONCURRENT_JOBS}.",
         )
     return api_key_obj
