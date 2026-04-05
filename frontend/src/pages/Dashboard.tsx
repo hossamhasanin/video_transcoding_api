@@ -1,6 +1,7 @@
 import React from 'react'
 import ApiKeyManager from '../components/ApiKeyManager'
 import { useUsageStats } from '../hooks/useUsageStats'
+import { getErrorMessage } from '../utils/http'
 
 function Dashboard(): React.ReactElement {
   const { stats, error, isLoading } = useUsageStats()
@@ -11,7 +12,7 @@ function Dashboard(): React.ReactElement {
 
       {error && (
         <div className="bg-danger-bg text-danger-text p-2.5 rounded mb-5">
-          {(error as any).response?.data?.detail ?? error.message}
+          {getErrorMessage(error, 'Something went wrong while loading usage stats.')}
         </div>
       )}
 

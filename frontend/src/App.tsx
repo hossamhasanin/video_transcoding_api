@@ -16,7 +16,12 @@ function AppContent(): React.ReactElement {
   const logout = useAuthStore((s) => s.logout)
 
   return (
-    <Router>
+    <Router
+      future={{
+        v7_relativeSplatPath: true,
+        v7_startTransition: true,
+      }}
+    >
       <div className="flex min-h-screen font-sans bg-page-bg text-[#333]">
         <nav className="w-[250px] bg-sidebar text-white p-5 flex flex-col">
           <h2 className="mt-0 text-2xl">TranscodeFlow</h2>

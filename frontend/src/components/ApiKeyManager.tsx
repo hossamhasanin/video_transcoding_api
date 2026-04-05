@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useApiKeys, useCreateApiKey, useRevokeApiKey } from '../hooks/useApiKeys'
+import { getErrorMessage } from '../utils/http'
 
 function ApiKeyManager(): React.ReactElement {
   const [newKeyName, setNewKeyName] = useState<string>('')
@@ -34,7 +35,7 @@ function ApiKeyManager(): React.ReactElement {
     <div className="bg-white p-5 rounded-lg shadow-card">
       {error && (
         <div className="bg-danger-bg text-danger-text p-2.5 rounded mb-5">
-          {(error as any).response?.data?.detail ?? error.message}
+          {getErrorMessage(error, 'Something went wrong while loading API keys.')}
         </div>
       )}
 

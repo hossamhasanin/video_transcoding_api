@@ -11,6 +11,11 @@ const api: AxiosInstance = axios.create({
   },
 })
 
+const navigateToLogin = (): void => {
+  window.history.replaceState(null, '', '/login')
+  window.dispatchEvent(new PopStateEvent('popstate'))
+}
+
 // Attach access token to every request
 api.interceptors.request.use((config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
   const tokens = useAuthStore.getState().tokens
@@ -73,7 +78,7 @@ api.interceptors.response.use(
       const tokens = useAuthStore.getState().tokens
       if (!tokens?.refresh_token) {
         useAuthStore.getState().logout()
-        window.location.href = '/login'
+        navigateToLogin()
         return Promise.reject(error)
       }
 
@@ -88,7 +93,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null)
         useAuthStore.getState().logout()
-        window.location.href = '/login'
+        navigateToLogin()
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

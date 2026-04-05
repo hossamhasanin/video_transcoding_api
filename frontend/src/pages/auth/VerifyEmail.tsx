@@ -1,6 +1,27 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuthStore, selectIsAuthenticated } from '../../store/authStore'
+
+const inFlightVerificationRequests = new Map<string, Promise<unknown>>()
+
+const verifyEmailOnce = (
+  token: string,
+  verifyEmail: (token: string) => Promise<unknown>,
+): Promise<unknown> => {
+  const existingRequest = inFlightVerificationRequests.get(token)
+
+  if (existingRequest) {
+    return existingRequest
+  }
+
+  const request = verifyEmail(token).finally(() => {
+    inFlightVerificationRequests.delete(token)
+  })
+
+  inFlightVerificationRequests.set(token, request)
+
+  return request
+}
 
 function VerifyEmail(): React.ReactElement {
   const [searchParams] = useSearchParams()
@@ -19,16 +40,30 @@ function VerifyEmail(): React.ReactElement {
       return
     }
 
-    verifyEmail(token)
+    let isActive = true
+
+    verifyEmailOnce(token, verifyEmail)
       .then((data) => {
+        if (!isActive) {
+          return
+        }
+
         setStatus('success')
         setMessage((data as { message?: string }).message || 'Email verified successfully!')
       })
       .catch((err: unknown) => {
+        if (!isActive) {
+          return
+        }
+
         setStatus('error')
         const e = err as { response?: { data?: { detail?: string } } }
         setMessage(e.response?.data?.detail || 'Verification failed. The link may have expired.')
       })
+
+    return () => {
+      isActive = false
+    }
   }, [token, verifyEmail])
 
   const handleResend = async (): Promise<void> => {
