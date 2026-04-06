@@ -3,8 +3,10 @@ import type {
   PlaygroundFormState,
   HlsConfigState,
   CodecPreset,
+  SourceMode,
 } from "../../types/index";
 import HlsRenditionEditor from "./HlsRenditionEditor";
+import FileUploader from "./FileUploader";
 
 interface PlaygroundFormProps {
   state: PlaygroundFormState;
@@ -16,6 +18,7 @@ interface PlaygroundFormProps {
     field: K,
     value: HlsConfigState[K],
   ) => void;
+  setSourceMode: (mode: SourceMode) => void;
   addRendition: (rendition: PlaygroundFormState["hls_config"]["renditions"][number]) => void;
   editRendition: (
     id: string,
@@ -24,6 +27,12 @@ interface PlaygroundFormProps {
   removeRendition: (id: string) => void;
   onSubmit: () => void;
   submitting: boolean;
+  uploading: boolean;
+  uploadProgress: number;
+  uploadError: string | null;
+  uploadedFileName: string | null;
+  onFileSelect: (file: File) => void;
+  onRemoveFile: () => void;
 }
 
 const PRESETS = [
@@ -51,44 +60,80 @@ function PlaygroundForm({
   state,
   setField,
   setHlsField,
+  setSourceMode,
   addRendition,
   editRendition,
   removeRendition,
   onSubmit,
   submitting,
+  uploading,
+  uploadProgress,
+  uploadError,
+  uploadedFileName,
+  onFileSelect,
+  onRemoveFile,
 }: PlaygroundFormProps): React.ReactElement {
   const showHls = state.output_format === "hls";
   const hls = state.hls_config;
 
   const sourceUrlError =
+    state.source_mode === "url" &&
     state.source_url.length > 0 &&
     !/^https?:\/\/.+/.test(state.source_url)
       ? "Enter a valid URL (e.g. https://example.com/video.mp4)"
       : null;
 
   const canSubmit =
-    state.source_url.length > 0 && !sourceUrlError && !submitting;
+    state.source_url.length > 0 &&
+    !sourceUrlError &&
+    !submitting &&
+    !uploading;
 
   return (
     <div className="space-y-6">
-      {/* Source URL */}
+      {/* Source — URL / Upload toggle */}
       <div>
-        <label
-          htmlFor="source_url"
-          className="block text-sm font-semibold mb-1.5 text-[#333]"
-        >
-          Source URL
+        <label className="block text-sm font-semibold mb-1.5 text-[#333]">
+          Source
         </label>
-        <input
-          id="source_url"
-          type="url"
-          value={state.source_url}
-          onChange={(e) => setField("source_url", e.target.value)}
-          placeholder="https://example.com/video.mp4"
-          className={`w-full p-2.5 border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand ${
-            sourceUrlError ? "border-danger" : "border-pg-border"
-          }`}
-        />
+        <div className="flex gap-2 mb-2">
+          {(["url", "file"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setSourceMode(mode)}
+              className={`px-4 py-2 rounded text-sm font-medium border transition-colors ${
+                state.source_mode === mode
+                  ? "bg-brand text-white border-brand"
+                  : "bg-white text-[#333] border-pg-border hover:bg-gray-50"
+              }`}
+            >
+              {mode === "url" ? "URL" : "Upload File"}
+            </button>
+          ))}
+        </div>
+
+        {state.source_mode === "url" ? (
+          <input
+            id="source_url"
+            type="url"
+            value={state.source_url}
+            onChange={(e) => setField("source_url", e.target.value)}
+            placeholder="https://example.com/video.mp4"
+            className={`w-full p-2.5 border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand ${
+              sourceUrlError ? "border-danger" : "border-pg-border"
+            }`}
+          />
+        ) : (
+          <FileUploader
+            uploading={uploading}
+            progress={uploadProgress}
+            error={uploadError}
+            uploadedFile={uploadedFileName}
+            onFileSelect={onFileSelect}
+            onRemove={onRemoveFile}
+          />
+        )}
         {sourceUrlError && (
           <p className="mt-1 text-xs text-danger">{sourceUrlError}</p>
         )}
@@ -133,6 +178,10 @@ function PlaygroundForm({
                 {hls.segment_duration}s
               </span>
             </label>
+            <p className="text-xs text-muted mb-2">
+              Length of each .ts segment file. Shorter segments reduce latency
+              but increase file count and overhead.
+            </p>
             <input
               id="segment_duration"
               type="range"
@@ -159,6 +208,10 @@ function PlaygroundForm({
             >
               Codec Preset
             </label>
+            <p className="text-xs text-muted mb-2">
+              Encoding speed vs compression efficiency. Slower presets produce
+              smaller files at the same quality but take longer to encode.
+            </p>
             <select
               id="codec_preset"
               value={hls.video_codec_preset}
@@ -184,6 +237,10 @@ function PlaygroundForm({
               CRF Quality:{" "}
               <span className="text-brand font-semibold">{hls.video_crf}</span>
             </label>
+            <p className="text-xs text-muted mb-2">
+              Constant Rate Factor — lower values mean better quality and larger
+              files. 18-28 is the typical range; 23 is the x264 default.
+            </p>
             <input
               id="video_crf"
               type="range"
@@ -210,6 +267,11 @@ function PlaygroundForm({
             >
               Video Profile
             </label>
+            <p className="text-xs text-muted mb-2">
+              H.264 feature set. &quot;Baseline&quot; for maximum device
+              compatibility; &quot;Main&quot; is a good balance; &quot;High&quot;
+              enables advanced features for better compression.
+            </p>
             <select
               id="video_profile"
               value={hls.video_profile}

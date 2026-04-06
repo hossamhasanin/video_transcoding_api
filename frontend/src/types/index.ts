@@ -59,6 +59,15 @@ export interface AuthState {
 // Playground entities
 // ---------------------------------------------------------------------------
 
+export type SourceMode = "url" | "file"
+
+export interface UploadResponse {
+  source_url: string
+  filename: string
+  size_bytes: number
+  content_type: string
+}
+
 export type CodecPreset =
   | "ultrafast"
   | "superfast"
@@ -89,6 +98,7 @@ export interface HlsConfigState {
 
 export interface PlaygroundFormState {
   source_url: string
+  source_mode: SourceMode
   output_format: "mp4" | "hls"
   preset: "tiktok" | "youtube" | "instagram" | null
   generate_subtitles: boolean

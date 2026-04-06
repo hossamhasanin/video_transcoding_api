@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_JOBS: int = 10
     MAX_UPLOAD_SIZE_MB: int = 500
 
+    # File Uploads
+    UPLOAD_SOURCE_PREFIX: str = "uploads/playground"
+    LOCAL_UPLOAD_DIR: str = "/tmp/transcode_uploads"
+
     # Webhooks
     WEBHOOK_SECRET_KEY: str = "your-secret-key"
 

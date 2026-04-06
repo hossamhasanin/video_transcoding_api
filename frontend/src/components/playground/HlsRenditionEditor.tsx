@@ -87,6 +87,10 @@ function HlsRenditionEditor({
       <label className="block text-sm font-semibold text-[#333]">
         Renditions
       </label>
+      <p className="text-xs text-muted -mt-1 mb-2">
+        Each rendition defines an output quality level (resolution + bitrate).
+        Players automatically switch between them based on viewer bandwidth.
+      </p>
 
       {/* Existing renditions */}
       {renditions.length > 0 && (

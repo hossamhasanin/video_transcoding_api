@@ -2,8 +2,9 @@ import React, { useState, useCallback } from "react";
 import PlaygroundForm from "../components/playground/PlaygroundForm";
 import RequestPreview from "../components/playground/RequestPreview";
 import type { PreviewTab } from "../components/playground/RequestPreview";
-import type { TestJobResponse } from "../types/index";
+import type { TestJobResponse, UploadResponse } from "../types/index";
 import { usePlaygroundForm } from "../hooks/usePlaygroundForm";
+import { MAX_FILE_SIZE_MB } from "../components/playground/FileUploader";
 import api from "../api";
 
 function Playground(): React.ReactElement {
@@ -12,6 +13,7 @@ function Playground(): React.ReactElement {
     previewPayload,
     setField,
     setHlsField,
+    setSourceMode,
     addRendition,
     editRendition,
     removeRendition,
@@ -21,6 +23,71 @@ function Playground(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<PreviewTab>("request");
+
+  // Upload state
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
+  const handleFileSelect = useCallback(
+    async (file: File) => {
+      // Client-side validation
+      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        setUploadError(
+          `File too large: ${(file.size / (1024 * 1024)).toFixed(1)}MB exceeds ${MAX_FILE_SIZE_MB}MB limit.`,
+        );
+        return;
+      }
+
+      setUploadError(null);
+      setUploading(true);
+      setUploadProgress(0);
+      setUploadedFileName(null);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const { data } = await api.post<UploadResponse>(
+          "/playground/upload",
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+            onUploadProgress: (evt) => {
+              if (evt.total) {
+                setUploadProgress(Math.round((evt.loaded / evt.total) * 100));
+              }
+            },
+          },
+        );
+
+        setField("source_url", data.source_url);
+        setUploadedFileName(file.name);
+      } catch (err: unknown) {
+        if (err && typeof err === "object" && "response" in err) {
+          const axiosErr = err as {
+            response?: { data?: { detail?: string }; status?: number };
+          };
+          setUploadError(
+            axiosErr.response?.data?.detail ?? "Upload failed.",
+          );
+        } else {
+          setUploadError("Network error — please check your connection.");
+        }
+      } finally {
+        setUploading(false);
+      }
+    },
+    [setField],
+  );
+
+  const handleRemoveFile = useCallback(() => {
+    setUploadedFileName(null);
+    setUploadError(null);
+    setUploadProgress(0);
+    setField("source_url", "");
+  }, [setField]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
@@ -61,11 +128,18 @@ function Playground(): React.ReactElement {
             state={state}
             setField={setField}
             setHlsField={setHlsField}
+            setSourceMode={setSourceMode}
             addRendition={addRendition}
             editRendition={editRendition}
             removeRendition={removeRendition}
             onSubmit={handleSubmit}
             submitting={submitting}
+            uploading={uploading}
+            uploadProgress={uploadProgress}
+            uploadError={uploadError}
+            uploadedFileName={uploadedFileName}
+            onFileSelect={handleFileSelect}
+            onRemoveFile={handleRemoveFile}
           />
         </div>
 

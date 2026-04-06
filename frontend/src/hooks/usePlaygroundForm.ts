@@ -6,22 +6,59 @@ import type {
   RenditionState,
   RequestPreviewPayload,
   RenditionPayload,
+  SourceMode,
 } from "../types/index";
 
 // ---------------------------------------------------------------------------
 // Default state
 // ---------------------------------------------------------------------------
 
+const DEFAULT_RENDITIONS: RenditionState[] = [
+  {
+    id: "default-1080p",
+    name: "1080p",
+    width: 1920,
+    height: 1080,
+    video_bitrate: "5000k",
+    audio_bitrate: "128k",
+  },
+  {
+    id: "default-720p",
+    name: "720p",
+    width: 1280,
+    height: 720,
+    video_bitrate: "2800k",
+    audio_bitrate: "128k",
+  },
+  {
+    id: "default-480p",
+    name: "480p",
+    width: 854,
+    height: 480,
+    video_bitrate: "1400k",
+    audio_bitrate: "128k",
+  },
+  {
+    id: "default-360p",
+    name: "360p",
+    width: 640,
+    height: 360,
+    video_bitrate: "800k",
+    audio_bitrate: "128k",
+  },
+];
+
 const defaultHlsConfig: HlsConfigState = {
   segment_duration: 10,
   video_codec_preset: "fast",
   video_crf: 23,
   video_profile: "high",
-  renditions: [],
+  renditions: DEFAULT_RENDITIONS,
 };
 
 const initialState: PlaygroundFormState = {
   source_url: "",
+  source_mode: "url" as SourceMode,
   output_format: "mp4",
   preset: null,
   generate_subtitles: false,
@@ -36,6 +73,7 @@ const initialState: PlaygroundFormState = {
 type FormAction =
   | { type: "SET_FIELD"; field: keyof Omit<PlaygroundFormState, "hls_config">; value: string | boolean | null }
   | { type: "SET_HLS_FIELD"; field: keyof Omit<HlsConfigState, "renditions">; value: number | string }
+  | { type: "SET_SOURCE_MODE"; value: SourceMode }
   | { type: "ADD_RENDITION"; payload: RenditionState }
   | { type: "EDIT_RENDITION"; id: string; payload: Partial<Omit<RenditionState, "id">> }
   | { type: "REMOVE_RENDITION"; id: string }
@@ -49,6 +87,9 @@ function formReducer(state: PlaygroundFormState, action: FormAction): Playground
   switch (action.type) {
     case "SET_FIELD":
       return { ...state, [action.field]: action.value };
+
+    case "SET_SOURCE_MODE":
+      return { ...state, source_mode: action.value, source_url: "" };
 
     case "SET_HLS_FIELD":
       return {
@@ -179,6 +220,10 @@ export function usePlaygroundForm() {
     [],
   );
 
+  const setSourceMode = useCallback((mode: SourceMode) => {
+    dispatch({ type: "SET_SOURCE_MODE", value: mode });
+  }, []);
+
   const addRendition = useCallback((rendition: RenditionState) => {
     dispatch({ type: "ADD_RENDITION", payload: rendition });
   }, []);
@@ -201,6 +246,7 @@ export function usePlaygroundForm() {
     previewPayload,
     setField,
     setHlsField,
+    setSourceMode,
     addRendition,
     editRendition,
     removeRendition,

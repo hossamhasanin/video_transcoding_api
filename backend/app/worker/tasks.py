@@ -4,6 +4,8 @@ import time
 import tempfile
 import requests
 import re
+import shutil
+from urllib.parse import urlparse
 from botocore.exceptions import ClientError
 
 from app.core.celery_app import celery_app
@@ -56,38 +58,53 @@ def transcode_video_task(self, job_id: str):
             else:
                 output_path = os.path.join(temp_dir, f"output_{job_id}.mp4")
 
-            # Validate file size before downloading (HEAD request)
-            max_size_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
-            print(f"Checking source file size from {source_url}")
-            head_response = requests.head(source_url, timeout=10, allow_redirects=True)
-            head_response.raise_for_status()
-            content_length = head_response.headers.get("Content-Length")
-            if content_length and int(content_length) > max_size_bytes:
-                raise ValueError(
-                    f"Source file too large: {int(content_length) / (1024*1024):.1f}MB "
-                    f"exceeds limit of {settings.MAX_UPLOAD_SIZE_MB}MB"
+            # Handle file:// URLs (local dev uploads)
+            parsed = urlparse(source_url)
+            if parsed.scheme == "file":
+                local_src = parsed.path
+                if not os.path.exists(local_src):
+                    raise FileNotFoundError(f"Local source file not found: {local_src}")
+                shutil.copy2(local_src, source_file_path)
+                source_size = os.path.getsize(source_file_path)
+                print(f"Copied local file ({source_size} bytes) " f"from {local_src}")
+            else:
+                # Validate file size before downloading (HEAD request)
+                max_size_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+                print(f"Checking source file size from {source_url}")
+                head_response = requests.head(
+                    source_url, timeout=10, allow_redirects=True
                 )
+                head_response.raise_for_status()
+                content_length = head_response.headers.get("Content-Length")
+                if content_length and int(content_length) > max_size_bytes:
+                    raise ValueError(
+                        f"Source file too large: "
+                        f"{int(content_length) / (1024*1024):.1f}MB "
+                        f"exceeds limit of {settings.MAX_UPLOAD_SIZE_MB}MB"
+                    )
 
-            print(f"Downloading source video from {source_url}")
-            response = requests.get(source_url, stream=True, timeout=(10, 600))
-            response.raise_for_status()
-            downloaded_bytes = 0
-            with open(source_file_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    downloaded_bytes += len(chunk)
-                    if downloaded_bytes > max_size_bytes:
-                        f.close()
-                        os.remove(source_file_path)
-                        raise ValueError(
-                            f"Source file too large: exceeds limit of {settings.MAX_UPLOAD_SIZE_MB}MB"
-                        )
-                    f.write(chunk)
+                print(f"Downloading source video from {source_url}")
+                response = requests.get(source_url, stream=True, timeout=(10, 600))
+                response.raise_for_status()
+                downloaded_bytes = 0
+                with open(source_file_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        downloaded_bytes += len(chunk)
+                        if downloaded_bytes > max_size_bytes:
+                            f.close()
+                            os.remove(source_file_path)
+                            raise ValueError(
+                                f"Source file too large: exceeds limit "
+                                f"of {settings.MAX_UPLOAD_SIZE_MB}MB"
+                            )
+                        f.write(chunk)
 
-            # Track actual source file size
-            source_size = os.path.getsize(source_file_path)
-            print(
-                f"Source file size: {source_size} bytes ({source_size / (1024*1024):.1f}MB)"
-            )
+                # Track actual source file size
+                source_size = os.path.getsize(source_file_path)
+                print(
+                    f"Source file size: {source_size} bytes "
+                    f"({source_size / (1024*1024):.1f}MB)"
+                )
 
             print(
                 f"Starting transcode for job {job_id} with format {output_format} and preset {preset}"

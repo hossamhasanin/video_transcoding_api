@@ -32,3 +32,10 @@ class TestJobResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UploadResponse(BaseModel):
+    source_url: str
+    filename: str
+    size_bytes: int
+    content_type: str
