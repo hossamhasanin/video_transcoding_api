@@ -97,6 +97,7 @@ def transcode_video_task(self, job_id: str):
                 output_path,
                 output_format=output_format,
                 preset_name=preset,
+                hls_config=job.hls_config,
             )
 
             # Track output file size

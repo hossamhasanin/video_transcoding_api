@@ -36,6 +36,9 @@ def create_job(
         output_format=job_in.output_format,
         webhook_url=str(job_in.webhook_url) if job_in.webhook_url else None,
         generate_subtitles=job_in.generate_subtitles,
+        hls_config=(
+            job_in.hls_config.model_dump(mode="json") if job_in.hls_config else None
+        ),
         status="pending",
     )
     db.add(new_job)

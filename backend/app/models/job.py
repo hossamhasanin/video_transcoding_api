@@ -10,7 +10,7 @@ from sqlalchemy import (
     BigInteger,
     Float,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -46,6 +46,7 @@ class Job(Base):
     output_format = Column(String(20), nullable=False, default="mp4")
     generate_subtitles = Column(Boolean, nullable=False, default=False)
     subtitle_url = Column(String(2048), nullable=True)
+    hls_config = Column(JSONB, nullable=True)
 
     # Real usage tracking fields
     source_size_bytes = Column(
