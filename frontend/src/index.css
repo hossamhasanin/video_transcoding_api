@@ -38,3 +38,8 @@
   --color-pg-panel-bg:     #ffffff;
   --color-pg-header-bg:    #f9fafb;
 }
+
+@keyframes stripe-slide {
+  0% { background-position: 0 0; }
+  100% { background-position: 40px 0; }
+}

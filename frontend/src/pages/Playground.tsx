@@ -5,6 +5,7 @@ import type { PreviewTab } from "../components/playground/RequestPreview";
 import type { TestJobResponse, UploadResponse } from "../types/index";
 import { usePlaygroundForm } from "../hooks/usePlaygroundForm";
 import { MAX_FILE_SIZE_MB } from "../components/playground/FileUploader";
+import type { UploadPhase } from "../components/playground/FileUploader";
 import api from "../api";
 
 function Playground(): React.ReactElement {
@@ -25,7 +26,7 @@ function Playground(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<PreviewTab>("request");
 
   // Upload state
-  const [uploading, setUploading] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
@@ -41,7 +42,7 @@ function Playground(): React.ReactElement {
       }
 
       setUploadError(null);
-      setUploading(true);
+      setUploadPhase("uploading");
       setUploadProgress(0);
       setUploadedFileName(null);
 
@@ -56,7 +57,11 @@ function Playground(): React.ReactElement {
             headers: { "Content-Type": "multipart/form-data" },
             onUploadProgress: (evt) => {
               if (evt.total) {
-                setUploadProgress(Math.round((evt.loaded / evt.total) * 100));
+                const pct = Math.round((evt.loaded / evt.total) * 100);
+                setUploadProgress(pct);
+                if (pct >= 100) {
+                  setUploadPhase("processing");
+                }
               }
             },
           },
@@ -76,7 +81,7 @@ function Playground(): React.ReactElement {
           setUploadError("Network error — please check your connection.");
         }
       } finally {
-        setUploading(false);
+        setUploadPhase("idle");
       }
     },
     [setField],
@@ -86,6 +91,7 @@ function Playground(): React.ReactElement {
     setUploadedFileName(null);
     setUploadError(null);
     setUploadProgress(0);
+    setUploadPhase("idle");
     setField("source_url", "");
   }, [setField]);
 
@@ -120,7 +126,7 @@ function Playground(): React.ReactElement {
 
       <div className="flex gap-6 flex-1 min-h-0">
         {/* Left panel — Form (~55%) */}
-        <div className="w-[55%] bg-pg-panel-bg border border-pg-border rounded-lg overflow-y-auto p-6">
+        <div className="w-[55%] min-w-0 bg-pg-panel-bg border border-pg-border rounded-lg overflow-y-auto p-6">
           <h2 className="text-lg font-semibold mb-4 text-[#333]">
             Configuration
           </h2>
@@ -134,7 +140,7 @@ function Playground(): React.ReactElement {
             removeRendition={removeRendition}
             onSubmit={handleSubmit}
             submitting={submitting}
-            uploading={uploading}
+            uploadPhase={uploadPhase}
             uploadProgress={uploadProgress}
             uploadError={uploadError}
             uploadedFileName={uploadedFileName}

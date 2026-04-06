@@ -7,6 +7,7 @@ import type {
 } from "../../types/index";
 import HlsRenditionEditor from "./HlsRenditionEditor";
 import FileUploader from "./FileUploader";
+import type { UploadPhase } from "./FileUploader";
 
 interface PlaygroundFormProps {
   state: PlaygroundFormState;
@@ -27,7 +28,7 @@ interface PlaygroundFormProps {
   removeRendition: (id: string) => void;
   onSubmit: () => void;
   submitting: boolean;
-  uploading: boolean;
+  uploadPhase: UploadPhase;
   uploadProgress: number;
   uploadError: string | null;
   uploadedFileName: string | null;
@@ -66,7 +67,7 @@ function PlaygroundForm({
   removeRendition,
   onSubmit,
   submitting,
-  uploading,
+  uploadPhase,
   uploadProgress,
   uploadError,
   uploadedFileName,
@@ -87,7 +88,7 @@ function PlaygroundForm({
     state.source_url.length > 0 &&
     !sourceUrlError &&
     !submitting &&
-    !uploading;
+    uploadPhase === "idle";
 
   return (
     <div className="space-y-6">
@@ -126,7 +127,7 @@ function PlaygroundForm({
           />
         ) : (
           <FileUploader
-            uploading={uploading}
+            phase={uploadPhase}
             progress={uploadProgress}
             error={uploadError}
             uploadedFile={uploadedFileName}

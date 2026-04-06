@@ -4,8 +4,10 @@ const ACCEPTED_VIDEO_TYPES =
   "video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska";
 const MAX_FILE_SIZE_MB = 500;
 
+type UploadPhase = "idle" | "uploading" | "processing";
+
 interface FileUploaderProps {
-  uploading: boolean;
+  phase: UploadPhase;
   progress: number;
   error: string | null;
   uploadedFile: string | null;
@@ -20,7 +22,7 @@ function formatSize(bytes: number): string {
 }
 
 function FileUploader({
-  uploading,
+  phase,
   progress,
   error,
   uploadedFile,
@@ -70,8 +72,8 @@ function FileUploader({
 
   if (uploadedFile) {
     return (
-      <div className="flex items-center justify-between p-3 border border-pg-border rounded bg-white">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center justify-between p-3 border border-pg-border rounded bg-white overflow-hidden">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <svg
             className="w-5 h-5 text-brand shrink-0"
             fill="none"
@@ -121,7 +123,7 @@ function FileUploader({
           className="hidden"
         />
 
-        {uploading ? (
+        {phase === "uploading" ? (
           <div className="space-y-3">
             <p className="text-sm text-[#333] font-medium">Uploading...</p>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -131,6 +133,24 @@ function FileUploader({
               />
             </div>
             <p className="text-xs text-muted">{Math.round(progress)}%</p>
+          </div>
+        ) : phase === "processing" ? (
+          <div className="space-y-3">
+            <p className="text-sm text-[#333] font-medium">
+              Processing upload...
+            </p>
+            <div className="w-full rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  backgroundImage:
+                    "repeating-linear-gradient(-45deg, var(--color-brand) 0px, var(--color-brand) 10px, rgba(255,255,255,0.3) 10px, rgba(255,255,255,0.3) 20px)",
+                  backgroundSize: "40px 40px",
+                  animation: "stripe-slide 0.8s linear infinite",
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted">Saving to storage...</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -165,3 +185,4 @@ function FileUploader({
 
 export default FileUploader;
 export { formatSize, MAX_FILE_SIZE_MB };
+export type { UploadPhase };
