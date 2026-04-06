@@ -24,4 +24,17 @@
   --shadow-auth-card: 0 4px 20px rgba(0, 0, 0, 0.08);
 
   --max-w-auth: 420px;
+
+  /* Playground JSON syntax highlighting */
+  --color-json-key:        #0b7571;
+  --color-json-string:     #b5200c;
+  --color-json-number:     #1a1ac7;
+  --color-json-bool:       #7c1ac7;
+  --color-json-null:       #808080;
+  --color-json-bracket:    #333333;
+
+  /* Playground panel */
+  --color-pg-border:       #e0e0e0;
+  --color-pg-panel-bg:     #ffffff;
+  --color-pg-header-bg:    #f9fafb;
 }

@@ -54,3 +54,83 @@ export interface AuthState {
   verifyEmail: (token: string) => Promise<unknown>
   resendVerification: () => Promise<unknown>
 }
+
+// ---------------------------------------------------------------------------
+// Playground entities
+// ---------------------------------------------------------------------------
+
+export type CodecPreset =
+  | "ultrafast"
+  | "superfast"
+  | "veryfast"
+  | "faster"
+  | "fast"
+  | "medium"
+  | "slow"
+  | "slower"
+  | "veryslow"
+
+export interface RenditionState {
+  id: string
+  name: string
+  width: number
+  height: number
+  video_bitrate: string
+  audio_bitrate: string
+}
+
+export interface HlsConfigState {
+  segment_duration: number
+  video_codec_preset: CodecPreset
+  video_crf: number
+  video_profile: "baseline" | "main" | "high"
+  renditions: RenditionState[]
+}
+
+export interface PlaygroundFormState {
+  source_url: string
+  output_format: "mp4" | "hls"
+  preset: "tiktok" | "youtube" | "instagram" | null
+  generate_subtitles: boolean
+  webhook_url: string
+  hls_config: HlsConfigState
+}
+
+export interface RenditionPayload {
+  name: string
+  width: number
+  height: number
+  video_bitrate: string
+  audio_bitrate?: string
+}
+
+export interface RequestPreviewPayload {
+  source_url: string
+  output_format?: "mp4" | "hls"
+  preset?: "tiktok" | "youtube" | "instagram"
+  generate_subtitles?: boolean
+  webhook_url?: string
+  hls_config?: {
+    segment_duration?: number
+    video_codec_preset?: string
+    video_crf?: number
+    video_profile?: string
+    renditions?: RenditionPayload[]
+  }
+}
+
+export interface TestJobResponse {
+  id: string
+  status: string
+  source_url: string
+  output_format: string
+  preset: string | null
+  generate_subtitles: boolean
+  webhook_url: string | null
+  hls_config: object | null
+  source_size_bytes: number | null
+  output_size_bytes: number | null
+  processing_duration_seconds: number | null
+  created_at: string
+  updated_at: string
+}

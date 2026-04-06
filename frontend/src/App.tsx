@@ -1,8 +1,9 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, NavLink, Link, Navigate } from 'react-router-dom'
 import { useAuthStore, selectIsAuthenticated } from './store/authStore'
 import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
+import Playground from './pages/Playground'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
@@ -35,8 +36,9 @@ function AppContent(): React.ReactElement {
                 )}
               </div>
               <ul className="list-none p-0 flex-1">
-                <li className="mb-2.5"><Link to="/" className="text-white no-underline text-base block px-3 py-2 rounded transition-colors hover:bg-sidebar-hover">Dashboard</Link></li>
-                <li className="mb-2.5"><Link to="/settings" className="text-white no-underline text-base block px-3 py-2 rounded transition-colors hover:bg-sidebar-hover">Settings</Link></li>
+                <li className="mb-2.5"><NavLink to="/" end className={({ isActive }) => `text-white no-underline text-base block px-3 py-2 rounded transition-colors ${isActive ? 'bg-sidebar-hover' : 'hover:bg-sidebar-hover'}`}>Dashboard</NavLink></li>
+                <li className="mb-2.5"><NavLink to="/playground" className={({ isActive }) => `text-white no-underline text-base block px-3 py-2 rounded transition-colors ${isActive ? 'bg-sidebar-hover' : 'hover:bg-sidebar-hover'}`}>Playground</NavLink></li>
+                <li className="mb-2.5"><NavLink to="/settings" className={({ isActive }) => `text-white no-underline text-base block px-3 py-2 rounded transition-colors ${isActive ? 'bg-sidebar-hover' : 'hover:bg-sidebar-hover'}`}>Settings</NavLink></li>
               </ul>
               <button onClick={logout} className="mt-auto px-4 py-2 bg-danger text-white border-none rounded cursor-pointer w-full text-sm hover:bg-danger-dark transition-colors">Sign Out</button>
             </>
@@ -61,6 +63,11 @@ function AppContent(): React.ReactElement {
             <Route path="/" element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/playground" element={
+              <ProtectedRoute>
+                <Playground />
               </ProtectedRoute>
             } />
 
