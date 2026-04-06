@@ -1,6 +1,6 @@
 # Local Testing Guide
 
-Quick reference for running and testing the Video Transcoding API locally — frontend, backend, and database. Workers are excluded (no transcoding/subtitle processing).
+Quick reference for running and testing the Video Transcoding API locally — frontend, backend, database, and optionally workers for transcoding and subtitle generation.
 
 ---
 
@@ -35,6 +35,20 @@ cd frontend && npm run dev
 | Swagger Docs | http://localhost:8000/docs |
 | PostgreSQL | localhost:5432 |
 | Redis | localhost:6379 |
+| Transcode Worker | `--profile worker` required |
+| ML Worker | `--profile ml` required |
+
+### Optional: Run Workers
+
+If you need transcoding or subtitle generation, set up R2 credentials in `.env` (see "Running Workers Locally" below) then:
+
+```bash
+# Add the transcode worker
+docker compose --profile worker up -d
+
+# Or add both workers
+docker compose --profile worker --profile ml up -d
+```
 
 ---
 
@@ -250,6 +264,18 @@ docker compose down
 
 # Stop and wipe database volume
 docker compose down -v
+
+# Start with transcode worker
+docker compose --profile worker up -d
+
+# Start with ML worker
+docker compose --profile ml up -d
+
+# Start everything (base + both workers)
+docker compose --profile worker --profile ml up -d
+
+# Stop everything including workers
+docker compose --profile worker --profile ml down
 ```
 
 ### Database Migrations
@@ -432,12 +458,159 @@ docker compose restart api
 
 ---
 
-## What's Not Tested Locally
+## Running Workers Locally
 
-These features require additional setup or external services:
+Workers handle video transcoding (FFmpeg) and ML-based subtitle generation (WhisperX). They are **opt-in** using Docker Compose profiles — the base `docker compose up -d` does not start them.
 
-- **Video transcoding** — needs worker nodes running FFmpeg
-- **Subtitle generation** — needs ML worker with WhisperX + GPU
-- **File storage** — needs Cloudflare R2 or AWS S3 credentials
+### Prerequisites
+
+Workers need **Cloudflare R2 credentials** to upload/download transcoded files. Without these, jobs will fail at the storage step.
+
+### Setting Up Cloudflare R2
+
+1. Log in to the [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. Navigate to **R2 Object Storage** (left sidebar)
+3. If prompted, enable R2 (may require payment method on file)
+4. Click **Create bucket** and name it (e.g., `video-transcoding`)
+5. Go to **Manage R2 API Tokens** (right sidebar on the R2 page)
+6. Click **Create API Token**
+7. Permissions: **Object Read & Write**
+8. Specify bucket: **Apply to only the bucket you created**
+9. Click **Create API Token**
+10. Copy the values into your root `.env`:
+
+| `.env` Variable | Where to Find It |
+|-----------------|------------------|
+| `R2_ACCOUNT_ID` | R2 overview page, or in the token details after creation |
+| `R2_ACCESS_KEY_ID` | **Access Key ID** shown after token creation |
+| `R2_SECRET_ACCESS_KEY` | **Secret Access Key** shown after token creation (shown once!) |
+| `R2_BUCKET_NAME` | The bucket name you created in step 4 (default: `video-transcoding`) |
+
+Your root `.env` should look like:
+
+```bash
+R2_ACCOUNT_ID=abc123def456ghi789
+R2_ACCESS_KEY_ID=your_access_key_id_here
+R2_SECRET_ACCESS_KEY=your_secret_access_key_here
+R2_BUCKET_NAME=video-transcoding
+S3_ENDPOINT_URL=
+```
+
+**Note:** `S3_ENDPOINT_URL` can be left empty — the worker auto-constructs it from `R2_ACCOUNT_ID`.
+
+### Starting Workers
+
+```bash
+# Base stack only (db, redis, api) — no workers
+docker compose up -d
+
+# Add the transcode worker
+docker compose --profile worker up -d
+
+# Add the ML worker (subtitle generation)
+docker compose --profile ml up -d
+
+# Run everything — base stack + both workers
+docker compose --profile worker --profile ml up -d
+```
+
+Workers are built from `backend/Dockerfile.worker` and `backend/Dockerfile.ml`. The first build takes a few minutes to install FFmpeg and Python dependencies.
+
+### Verifying Workers Are Running
+
+```bash
+# List all running containers (workers should appear)
+docker compose ps
+
+# Check worker logs
+docker compose logs -f worker-transcode
+docker compose logs -f worker-ml
+
+# Verify Celery is connected to the broker
+docker compose logs worker-transcode | grep "ready"
+# You should see: "celery@transcoding-worker ready."
+```
+
+### Testing a Full Transcode Job
+
+1. Make sure the base stack and worker are running:
+
+   ```bash
+   docker compose --profile worker up -d
+   ```
+
+2. Register a user and create an API key (see sections above).
+
+3. Submit a job with a publicly accessible video URL:
+
+   ```bash
+   curl -X POST http://localhost:8000/api/v1/jobs/ \
+     -H "X-API-Key: <api_key_value>" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "source_url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4",
+       "preset": "youtube",
+       "output_format": "mp4",
+       "generate_subtitles": false
+     }'
+   ```
+
+4. Watch the worker pick it up:
+
+   ```bash
+   docker compose logs -f worker-transcode
+   ```
+
+5. Poll the job status until it shows `completed`:
+
+   ```bash
+   curl http://localhost:8000/api/v1/jobs/<tracking_id> \
+     -H "X-API-Key: <api_key_value>"
+   ```
+
+### Worker Commands Reference
+
+```bash
+# View real-time worker logs
+docker compose logs -f worker-transcode
+docker compose logs -f worker-ml
+
+# View last 100 lines of worker logs
+docker compose logs --tail 100 worker-transcode
+
+# Restart a worker (picks up env changes)
+docker compose --profile worker restart worker-transcode
+
+# Rebuild and restart (after code changes)
+docker compose --profile worker up -d --build worker-transcode
+
+# Stop just the worker (keep base stack running)
+docker compose stop worker-transcode
+
+# Check Celery queue depth (via Redis)
+docker compose exec redis redis-cli -a localredispassword123 LLEN transcode_queue
+docker compose exec redis redis-cli -a localredispassword123 LLEN ml_queue
+```
+
+### Troubleshooting Workers
+
+| Issue | Fix |
+|-------|-----|
+| Worker exits immediately | Check logs: `docker compose logs worker-transcode`. Usually missing R2 credentials or Redis connection failure. |
+| `Name or service not known` for `db` or `redis` | Worker not on the Docker network. Make sure you used `docker compose --profile worker up -d` (not `docker run`). |
+| Job stays in `pending` forever | Worker not running or not connected to Redis. Check `docker compose ps` and worker logs. |
+| `Access Denied` on S3 upload | R2 credentials incorrect. Verify `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` in root `.env`. |
+| `NoSuchBucket` error | `R2_BUCKET_NAME` doesn't match the bucket name in Cloudflare. |
+| Worker build fails on `whisperx` | ML worker needs `git` (already in Dockerfile.ml). If pip fails, check network connectivity. |
+| ML worker runs out of memory | WhisperX needs significant RAM (~2-4 GB). Use `--profile ml` only when testing subtitles. |
+
+---
+
+## What's Not Tested Locally (without worker profiles)
+
+These features require worker profiles or external services:
+
+- **Video transcoding** — run `docker compose --profile worker up -d` (needs R2 credentials)
+- **Subtitle generation** — run `docker compose --profile ml up -d` (needs R2 credentials)
 - **Email delivery** — forgot-password / email-verification endpoints work but no emails are sent
-- **Webhooks** — callback URLs need to be reachable from the worker
+- **Webhooks** — callback URLs need to be reachable from the worker container

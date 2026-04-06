@@ -27,6 +27,33 @@ def _get_dir_size(path: str) -> int:
     return total
 
 
+def _extract_r2_key(source_url: str) -> str | None:
+    """Extract the S3 object key from an R2/S3 URL. Returns None if not an R2/S3 URL."""
+    parsed = urlparse(source_url)
+    host = parsed.hostname or ""
+    path = parsed.path.lstrip("/")
+
+    if host.endswith(".r2.cloudflarestorage.com"):
+        # Virtual-hosted style: bucket.account.r2.cloudflarestorage.com/key
+        if host.startswith(f"{settings.R2_BUCKET_NAME}."):
+            return path
+        # Path style: account.r2.cloudflarestorage.com/bucket/key
+        parts = path.split("/", 1)
+        if len(parts) > 1 and parts[0] == settings.R2_BUCKET_NAME:
+            return parts[1]
+        return None
+
+    # S3: bucket.s3.amazonaws.com/key or s3.amazonaws.com/bucket/key
+    if host.endswith(".s3.amazonaws.com"):
+        return path
+    if host == "s3.amazonaws.com":
+        parts = path.split("/", 1)
+        if len(parts) > 1:
+            return parts[1]
+
+    return None
+
+
 @celery_app.task(name="transcode_video", bind=True, max_retries=3)
 def transcode_video_task(self, job_id: str):
     start_time = time.time()
@@ -46,6 +73,7 @@ def transcode_video_task(self, job_id: str):
         preset = job.preset
         generate_subtitles = job.generate_subtitles
         webhook_url = job.webhook_url
+        hls_config = job.hls_config
         db.commit()
     finally:
         db.close()
@@ -68,43 +96,72 @@ def transcode_video_task(self, job_id: str):
                 source_size = os.path.getsize(source_file_path)
                 print(f"Copied local file ({source_size} bytes) " f"from {local_src}")
             else:
-                # Validate file size before downloading (HEAD request)
                 max_size_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
-                print(f"Checking source file size from {source_url}")
-                head_response = requests.head(
-                    source_url, timeout=10, allow_redirects=True
-                )
-                head_response.raise_for_status()
-                content_length = head_response.headers.get("Content-Length")
-                if content_length and int(content_length) > max_size_bytes:
-                    raise ValueError(
-                        f"Source file too large: "
-                        f"{int(content_length) / (1024*1024):.1f}MB "
-                        f"exceeds limit of {settings.MAX_UPLOAD_SIZE_MB}MB"
+
+                # Detect R2/S3 URLs and download via boto3
+                s3_key = _extract_r2_key(source_url)
+                if s3_key:
+                    print(
+                        f"Downloading from R2: bucket={settings.R2_BUCKET_NAME}, "
+                        f"key={s3_key}"
                     )
+                    s3 = get_s3_client()
+                    head = s3.head_object(
+                        Bucket=settings.R2_BUCKET_NAME, Key=s3_key
+                    )
+                    content_length = head.get("ContentLength", 0)
+                    if content_length > max_size_bytes:
+                        raise ValueError(
+                            f"Source file too large: "
+                            f"{content_length / (1024*1024):.1f}MB "
+                            f"exceeds limit of {settings.MAX_UPLOAD_SIZE_MB}MB"
+                        )
+                    s3.download_file(
+                        settings.R2_BUCKET_NAME, s3_key, source_file_path
+                    )
+                    source_size = os.path.getsize(source_file_path)
+                    print(
+                        f"Source file size: {source_size} bytes "
+                        f"({source_size / (1024*1024):.1f}MB)"
+                    )
+                else:
+                    # Public URL fallback — use requests
+                    print(f"Checking source file size from {source_url}")
+                    head_response = requests.head(
+                        source_url, timeout=10, allow_redirects=True
+                    )
+                    head_response.raise_for_status()
+                    content_length = head_response.headers.get("Content-Length")
+                    if content_length and int(content_length) > max_size_bytes:
+                        raise ValueError(
+                            f"Source file too large: "
+                            f"{int(content_length) / (1024*1024):.1f}MB "
+                            f"exceeds limit of {settings.MAX_UPLOAD_SIZE_MB}MB"
+                        )
 
-                print(f"Downloading source video from {source_url}")
-                response = requests.get(source_url, stream=True, timeout=(10, 600))
-                response.raise_for_status()
-                downloaded_bytes = 0
-                with open(source_file_path, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        downloaded_bytes += len(chunk)
-                        if downloaded_bytes > max_size_bytes:
-                            f.close()
-                            os.remove(source_file_path)
-                            raise ValueError(
-                                f"Source file too large: exceeds limit "
-                                f"of {settings.MAX_UPLOAD_SIZE_MB}MB"
-                            )
-                        f.write(chunk)
+                    print(f"Downloading source video from {source_url}")
+                    response = requests.get(
+                        source_url, stream=True, timeout=(10, 600)
+                    )
+                    response.raise_for_status()
+                    downloaded_bytes = 0
+                    with open(source_file_path, "wb") as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            downloaded_bytes += len(chunk)
+                            if downloaded_bytes > max_size_bytes:
+                                f.close()
+                                os.remove(source_file_path)
+                                raise ValueError(
+                                    f"Source file too large: exceeds limit "
+                                    f"of {settings.MAX_UPLOAD_SIZE_MB}MB"
+                                )
+                            f.write(chunk)
 
-                # Track actual source file size
-                source_size = os.path.getsize(source_file_path)
-                print(
-                    f"Source file size: {source_size} bytes "
-                    f"({source_size / (1024*1024):.1f}MB)"
-                )
+                    source_size = os.path.getsize(source_file_path)
+                    print(
+                        f"Source file size: {source_size} bytes "
+                        f"({source_size / (1024*1024):.1f}MB)"
+                    )
 
             print(
                 f"Starting transcode for job {job_id} with format {output_format} and preset {preset}"
@@ -114,7 +171,7 @@ def transcode_video_task(self, job_id: str):
                 output_path,
                 output_format=output_format,
                 preset_name=preset,
-                hls_config=job.hls_config,
+                hls_config=hls_config,
             )
 
             # Track output file size
