@@ -42,15 +42,6 @@ def _build_token_response(user_id: str, email: str) -> TokenResponse:
     )
 
 
-def _get_current_user(
-    db: Session = Depends(get_db),
-    token: str = Depends(lambda: None),  # overridden below
-) -> User:
-    """Extract current user from JWT access token."""
-    # This will be replaced by the actual dependency
-    pass
-
-
 # ---- Registration ----
 
 
@@ -167,41 +158,7 @@ def refresh_token(
 
 # ---- Get Current User (profile) ----
 
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-bearer_scheme = HTTPBearer()
-
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: Session = Depends(get_db),
-) -> User:
-    """Dependency to get the current authenticated user from JWT token."""
-    token = credentials.credentials
-    try:
-        payload = decode_token(token, expected_type="access")
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired access token",
-        )
-
-    user_id = payload.get("sub")
-    user = db.query(User).filter(User.id == user_id).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is deactivated",
-        )
-
-    return user
+from app.api.dependencies import get_current_user as _get_jwt_user
 
 
 @router.get(
@@ -209,7 +166,7 @@ def get_current_user(
     response_model=UserResponse,
     summary="Get current user profile",
 )
-def get_profile(current_user: User = Depends(get_current_user)):
+def get_profile(current_user: User = Depends(_get_jwt_user)):
     return current_user
 
 
@@ -225,7 +182,7 @@ def get_profile(current_user: User = Depends(get_current_user)):
 def change_password(
     request: Request,
     password_in: ChangePasswordRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_get_jwt_user),
     db: Session = Depends(get_db),
 ):
     if not verify_password(password_in.current_password, current_user.password_hash):
@@ -367,7 +324,7 @@ def verify_email(request: Request, token: str, db: Session = Depends(get_db)):
 @limiter.limit("3/minute")
 def resend_verification(
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_get_jwt_user),
 ):
     if current_user.email_verified:
         return MessageResponse(message="Email already verified")

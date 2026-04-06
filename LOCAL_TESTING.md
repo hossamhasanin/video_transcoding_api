@@ -1,0 +1,443 @@
+# Local Testing Guide
+
+Quick reference for running and testing the Video Transcoding API locally — frontend, backend, and database. Workers are excluded (no transcoding/subtitle processing).
+
+---
+
+## Prerequisites
+
+| Tool | Version |
+|------|---------|
+| Docker & Docker Compose | v2+ |
+| Node.js | v18+ |
+| Python | 3.13+ (only if running backend outside Docker) |
+| curl / httpie | any (for API testing) |
+
+---
+
+## Quick Start
+
+```bash
+# 1. Start infrastructure (PostgreSQL, Redis, FastAPI backend)
+docker compose up -d
+
+# 2. Run database migrations
+docker compose exec api alembic upgrade head
+
+# 3. Start the frontend dev server
+cd frontend && npm run dev
+```
+
+| Service | URL |
+|---------|-----|
+| Frontend (Vite) | http://localhost:5173 |
+| Backend API | http://localhost:8000 |
+| Swagger Docs | http://localhost:8000/docs |
+| PostgreSQL | localhost:5432 |
+| Redis | localhost:6379 |
+
+---
+
+## Environment Files
+
+Three `.env` files control local development. All are gitignored.
+
+### Root `.env` — Docker Compose
+
+Used by `docker-compose.yml` to configure the `db`, `redis`, and `api` services.
+
+```bash
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=localdevpassword123
+REDIS_PASSWORD=localredispassword123
+
+JWT_SECRET_KEY=<generated-secret>
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+FRONTEND_URL=http://localhost:5173
+
+# R2/S3 not needed for auth & dashboard testing
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+```
+
+### Backend `backend/.env` — FastAPI (local run)
+
+Used when running the backend **without** Docker (e.g. `uvicorn app.main:app`). The docker-compose `api` service overrides `DATABASE_URL` and `CELERY_BROKER_URL` to use Docker internal hostnames.
+
+```bash
+DATABASE_URL=postgresql://admin:localdevpassword123@localhost:5432/transcoding_db
+CELERY_BROKER_URL=redis://:localredispassword123@localhost:6379/0
+CELERY_RESULT_BACKEND=redis://:localredispassword123@localhost:6379/0
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+JWT_SECRET_KEY=<same-as-root>
+```
+
+### Frontend `frontend/.env` — Vite
+
+```bash
+VITE_API_URL=http://localhost:8000/api/v1
+```
+
+---
+
+## Testing Authentication
+
+All auth endpoints are prefixed `/api/v1/auth`. Password rules: min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special character.
+
+### Register
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "Str0ng!Pass",
+    "full_name": "Test User"
+  }'
+```
+
+Returns `user` object + `tokens` (access_token, refresh_token).
+
+### Login
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "Str0ng!Pass"
+  }'
+```
+
+### Get Current User (Authenticated)
+
+```bash
+curl http://localhost:8000/api/v1/auth/me \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### Refresh Token
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "<refresh_token>"}'
+```
+
+### Change Password
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/change-password \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "current_password": "Str0ng!Pass",
+    "new_password": "N3wP@ssw0rd"
+  }'
+```
+
+---
+
+## Testing API Keys
+
+API keys are required for job endpoints. First login to get a bearer token, then create an API key.
+
+### Create API Key
+
+```bash
+curl -X POST http://localhost:8000/api/v1/keys/ \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Test Key"}'
+```
+
+**Save the `key_value` — it's only returned once.**
+
+### List API Keys
+
+```bash
+curl http://localhost:8000/api/v1/keys/ \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### Delete API Key
+
+```bash
+curl -X DELETE http://localhost:8000/api/v1/keys/<key_id> \
+  -H "Authorization: Bearer <access_token>"
+```
+
+---
+
+## Testing Jobs
+
+Jobs require an API key (passed as `X-API-Key` header). Since workers aren't running, jobs will stay in `pending` status — this is expected.
+
+### Create a Job
+
+```bash
+curl -X POST http://localhost:8000/api/v1/jobs/ \
+  -H "X-API-Key: <api_key_value>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_url": "https://example.com/video.mp4",
+    "preset": "youtube",
+    "output_format": "mp4",
+    "generate_subtitles": false
+  }'
+```
+
+### Check Job Status
+
+```bash
+curl http://localhost:8000/api/v1/jobs/<tracking_id> \
+  -H "X-API-Key: <api_key_value>"
+```
+
+### Get Usage Stats
+
+```bash
+curl http://localhost:8000/api/v1/usage/ \
+  -H "Authorization: Bearer <access_token>"
+```
+
+---
+
+## Testing the Frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open http://localhost:5173. Test these flows:
+
+| Flow | Route | What to verify |
+|------|-------|----------------|
+| Register | `/register` | Creates account, redirects to dashboard |
+| Login | `/login` | Authenticates, redirects to dashboard |
+| Dashboard | `/` | Shows stats, job list (empty is fine) |
+| Settings | `/settings` | API key management |
+| Forgot Password | `/forgot-password` | Form submission (no email sent locally) |
+| Auto-redirect | `/login` (while logged in) | Redirects to dashboard |
+
+---
+
+## Useful Commands
+
+### Docker Compose
+
+```bash
+# Start all services
+docker compose up -d
+
+# Start only DB and Redis (run backend locally)
+docker compose up -d db redis
+
+# View logs
+docker compose logs -f api          # Follow API logs
+docker compose logs --tail 50 db    # Last 50 DB logs
+
+# Restart a single service
+docker compose restart api
+
+# Stop everything (keeps data)
+docker compose down
+
+# Stop and wipe database volume
+docker compose down -v
+```
+
+### Database Migrations
+
+```bash
+# Run all pending migrations
+docker compose exec api alembic upgrade head
+
+# Check current migration version
+docker compose exec api alembic current
+
+# Create a new migration (after model changes)
+docker compose exec api alembic revision --autogenerate -m "description"
+
+# Rollback one migration
+docker compose exec api alembic downgrade -1
+
+# Rollback to specific version
+docker compose exec api alembic downgrade <revision_id>
+```
+
+### Database Queries
+
+Connect to PostgreSQL directly:
+
+```bash
+# Open an interactive psql session
+docker compose exec db psql -U admin -d transcoding_db
+```
+
+**Common queries inside `psql`:**
+
+```sql
+-- List all tables
+\dt
+
+-- Describe a table structure
+\d users
+
+-- View all users
+SELECT id, email, full_name, is_active, email_verified, created_at FROM users;
+
+-- View all API keys (key_hash is hashed, key_prefix is readable)
+SELECT id, user_id, key_prefix, name, is_active, created_at FROM api_keys;
+
+-- View all jobs and their status
+SELECT id, user_id, status, preset, output_format, created_at FROM jobs;
+
+-- Find jobs stuck in pending
+SELECT * FROM jobs WHERE status = 'pending';
+
+-- Count jobs by status
+SELECT status, COUNT(*) FROM jobs GROUP BY status;
+
+-- Check a specific user by email
+SELECT * FROM users WHERE email = 'user@example.com';
+
+-- Exit psql
+\q
+```
+
+### Modifying Database Rows
+
+```bash
+docker compose exec db psql -U admin -d transcoding_db
+```
+
+```sql
+-- Activate/deactivate a user
+UPDATE users SET is_active = true WHERE email = 'user@example.com';
+UPDATE users SET is_active = false WHERE email = 'user@example.com';
+
+-- Verify a user's email manually
+UPDATE users SET email_verified = true WHERE email = 'user@example.com';
+
+-- Change a user's name
+UPDATE users SET full_name = 'New Name' WHERE email = 'user@example.com';
+
+-- Deactivate an API key
+UPDATE api_keys SET is_active = false WHERE key_prefix = 'vf_abc';
+
+-- Force a job to completed status (for dashboard testing)
+UPDATE jobs SET status = 'completed', output_url = 'https://example.com/output.mp4' WHERE id = '<job_uuid>';
+
+-- Force a job to failed status
+UPDATE jobs SET status = 'failed', error_message = 'Manual test failure' WHERE id = '<job_uuid>';
+
+-- Set fake usage stats on a job (for dashboard testing)
+UPDATE jobs
+SET source_size_bytes = 52428800,
+    output_size_bytes = 26214400,
+    processing_duration_seconds = 45.2
+WHERE id = '<job_uuid>';
+
+-- Delete all jobs for a user
+DELETE FROM jobs WHERE user_id = '<user_uuid>';
+
+-- Delete a user and all their data (cascades to keys and jobs)
+DELETE FROM users WHERE email = 'user@example.com';
+
+-- Reset the entire database (nuclear option)
+TRUNCATE users, api_keys, jobs CASCADE;
+```
+
+### Quick one-liners (no psql session needed)
+
+```bash
+# Check if a user exists
+docker compose exec db psql -U admin -d transcoding_db -c \
+  "SELECT email, is_active, email_verified FROM users;"
+
+# Count rows in each table
+docker compose exec db psql -U admin -d transcoding_db -c \
+  "SELECT 'users' AS table_name, COUNT(*) FROM users UNION ALL
+   SELECT 'api_keys', COUNT(*) FROM api_keys UNION ALL
+   SELECT 'jobs', COUNT(*) FROM jobs;"
+
+# Verify a user's email from CLI
+docker compose exec db psql -U admin -d transcoding_db -c \
+  "UPDATE users SET email_verified = true WHERE email = 'user@example.com';"
+```
+
+### Running Backend Locally (without Docker)
+
+Useful for debugging with hot-reload:
+
+```bash
+# Start only the infrastructure
+docker compose up -d db redis
+
+# Create/activate a virtual environment
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-api.txt
+
+# Run with hot-reload
+uvicorn app.main:app --reload --port 8000
+```
+
+The backend reads `backend/.env` which points to `localhost:5432` and `localhost:6379`.
+
+---
+
+## Rate Limits
+
+| Endpoint | Limit |
+|----------|-------|
+| Register | 5/min |
+| Login | 10/min |
+| Refresh token | 20/min |
+| Change password | 5/min |
+| Forgot password | 3/min |
+| Reset password | 5/min |
+| Verify email | 10/min |
+| Resend verification | 3/min |
+| Create job | 10/min |
+| Get job status | 30/min |
+
+If you hit rate limits during testing, restart the API container to reset:
+
+```bash
+docker compose restart api
+```
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| `Connection refused` on port 5432/6379 | Containers not running — `docker compose up -d db redis` |
+| API returns 500 on auth | Migrations not applied — `docker compose exec api alembic upgrade head` |
+| Frontend shows network errors | Check `VITE_API_URL` in `frontend/.env` and that backend is on port 8000 |
+| CORS errors in browser | Ensure `CORS_ORIGINS` in root `.env` includes `http://localhost:5173` |
+| Rate limit hit during testing | `docker compose restart api` |
+| Port already in use | `lsof -i :8000` to find the process, then kill it |
+| Database data corrupted | `docker compose down -v` then `docker compose up -d` (wipes all data) |
+| Want fresh start | `docker compose down -v && docker compose up -d && docker compose exec api alembic upgrade head` |
+
+---
+
+## What's Not Tested Locally
+
+These features require additional setup or external services:
+
+- **Video transcoding** — needs worker nodes running FFmpeg
+- **Subtitle generation** — needs ML worker with WhisperX + GPU
+- **File storage** — needs Cloudflare R2 or AWS S3 credentials
+- **Email delivery** — forgot-password / email-verification endpoints work but no emails are sent
+- **Webhooks** — callback URLs need to be reachable from the worker

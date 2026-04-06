@@ -10,7 +10,10 @@ export const API_KEYS_CACHE_KEY = '/keys'
 // READ hook
 export function useApiKeys() {
   const { data, error, isLoading, mutate } =
-    useSWR<ApiKey[], AxiosError>(API_KEYS_CACHE_KEY)
+    useSWR<ApiKey[], AxiosError>(API_KEYS_CACHE_KEY, {
+      errorRetryCount: 2,
+      revalidateOnFocus: false,
+    })
   return { keys: data ?? [], error, isLoading, mutate }
 }
 

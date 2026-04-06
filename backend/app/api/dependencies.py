@@ -1,15 +1,19 @@
 from fastapi import Depends, HTTPException, Security, status
 from fastapi.security.api_key import APIKeyHeader
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from passlib.context import CryptContext
+from jose import JWTError
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.security import decode_token
 from app.models.api_key import ApiKey
 from app.models.user import User
 
-api_key_header = APIKeyHeader(name="x-api-key", auto_error=True)
+api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
+bearer_scheme = HTTPBearer(auto_error=False)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -21,6 +25,63 @@ def get_hash(plain_key: str) -> str:
     return pwd_context.hash(plain_key)
 
 
+def _get_user_from_api_key(api_key: str, db: Session) -> User:
+    """Validate an API key string and return the associated User."""
+    if "_" not in api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API Key format",
+        )
+
+    prefix = api_key.split("_")[0] + "_"
+
+    db_keys = (
+        db.query(ApiKey)
+        .filter(ApiKey.key_prefix == prefix, ApiKey.is_active == True)
+        .all()
+    )
+
+    for db_key in db_keys:
+        if verify_api_key_str(api_key, db_key.key_hash):
+            user = db.query(User).filter(User.id == db_key.user_id).first()
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User not found",
+                )
+            return user
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+    )
+
+
+def _get_user_from_jwt(token: str, db: Session) -> User:
+    """Validate a JWT access token and return the associated User."""
+    try:
+        payload = decode_token(token, expected_type="access")
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired access token",
+        )
+
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated",
+        )
+    return user
+
+
 def get_current_api_key(
     api_key: str = Security(api_key_header), db: Session = Depends(get_db)
 ) -> ApiKey:
@@ -29,7 +90,7 @@ def get_current_api_key(
     The api key is typically in the format: prefix_actualkey
     We match by prefix first, then verify the hash.
     """
-    if "_" not in api_key:
+    if not api_key or "_" not in api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API Key format",
@@ -55,16 +116,23 @@ def get_current_api_key(
 
 
 def get_current_user(
-    api_key_obj: ApiKey = Depends(get_current_api_key), db: Session = Depends(get_db)
+    api_key: str = Security(api_key_header),
+    credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
+    db: Session = Depends(get_db),
 ) -> User:
-    """Returns the user associated with the valid API key."""
-    user = db.query(User).filter(User.id == api_key_obj.user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
-    return user
+    """Returns the current user via either JWT bearer token or API key."""
+    # Try JWT first (dashboard/frontend)
+    if credentials is not None:
+        return _get_user_from_jwt(credentials.credentials, db)
+
+    # Fall back to API key
+    if api_key is not None:
+        return _get_user_from_api_key(api_key, db)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+    )
 
 
 def check_concurrent_jobs_limit(
