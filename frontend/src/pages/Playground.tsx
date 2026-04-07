@@ -2,8 +2,10 @@ import React, { useState, useCallback } from "react";
 import PlaygroundForm from "../components/playground/PlaygroundForm";
 import RequestPreview from "../components/playground/RequestPreview";
 import type { PreviewTab } from "../components/playground/RequestPreview";
+import JobResultPanel from "../components/playground/JobResultPanel";
 import type { TestJobResponse, UploadResponse } from "../types/index";
 import { usePlaygroundForm } from "../hooks/usePlaygroundForm";
+import { useJobPolling } from "../hooks/useJobPolling";
 import { MAX_FILE_SIZE_MB } from "../components/playground/FileUploader";
 import type { UploadPhase } from "../components/playground/FileUploader";
 import api from "../api";
@@ -18,12 +20,18 @@ function Playground(): React.ReactElement {
     addRendition,
     editRendition,
     removeRendition,
+    reset: resetForm,
   } = usePlaygroundForm();
 
   const [response, setResponse] = useState<TestJobResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<PreviewTab>("request");
+  const [jobId, setJobId] = useState<string | null>(null);
+
+  // Poll for job status once we have a job ID
+  const { job: polledJob, polling } = useJobPolling(jobId);
+  const effectiveJob = polledJob ?? response;
 
   // Upload state
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>("idle");
@@ -99,6 +107,8 @@ function Playground(): React.ReactElement {
     setSubmitting(true);
     setError(null);
     setActiveTab("response");
+    setJobId(null);
+    setResponse(null);
 
     try {
       const { data } = await api.post<TestJobResponse>(
@@ -106,6 +116,7 @@ function Playground(): React.ReactElement {
         previewPayload,
       );
       setResponse(data);
+      setJobId(data.id);
     } catch (err: unknown) {
       if (err && typeof err === "object" && "response" in err) {
         const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -119,6 +130,65 @@ function Playground(): React.ReactElement {
       setSubmitting(false);
     }
   }, [previewPayload]);
+
+  const handleReset = useCallback(() => {
+    setJobId(null);
+    setResponse(null);
+    setError(null);
+    setActiveTab("request");
+    resetForm();
+  }, [resetForm]);
+
+  // Build the result tab content
+  const resultContent = (
+    <div className="space-y-4">
+      {submitting && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin h-8 w-8 border-2 border-brand border-t-transparent rounded-full" />
+          <span className="ml-3 text-sm text-muted">Submitting job...</span>
+        </div>
+      )}
+
+      {error && !submitting && (
+        <div className="bg-danger/10 border border-danger/30 rounded-lg p-4">
+          <p className="text-sm font-medium text-danger">Error</p>
+          <p className="text-sm text-danger/80 mt-1">{error}</p>
+        </div>
+      )}
+
+      {effectiveJob && !submitting && (
+        <>
+          {/* Warning callout */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+            This is a live job — it counts against your account usage and
+            concurrent job limit.
+          </div>
+
+          <JobResultPanel job={effectiveJob} polling={polling} />
+
+          {/* Reset button when terminal */}
+          {(effectiveJob.status === "completed" ||
+            effectiveJob.status === "failed") && (
+            <div className="pt-2 border-t border-pg-border">
+              <button
+                type="button"
+                onClick={handleReset}
+                className="w-full py-2 rounded text-sm font-semibold bg-gray-100 text-[#333] hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                New Job
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {!submitting && !error && !effectiveJob && (
+        <div className="flex items-center justify-center py-12 text-sm text-muted">
+          Submit a test job to see the response here.
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)]">
@@ -153,11 +223,10 @@ function Playground(): React.ReactElement {
         <div className="w-[45%] border border-pg-border rounded-lg overflow-hidden">
           <RequestPreview
             payload={previewPayload}
-            response={response}
-            error={error}
-            submitting={submitting}
+            response={effectiveJob}
             activeTab={activeTab}
             onTabChange={setActiveTab}
+            resultContent={resultContent}
           />
         </div>
       </div>

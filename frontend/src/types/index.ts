@@ -134,10 +134,13 @@ export interface TestJobResponse {
   status: string
   source_url: string
   output_format: string
+  output_url: string | null
+  error_message: string | null
   preset: string | null
   generate_subtitles: boolean
   webhook_url: string | null
   hls_config: object | null
+  subtitle_url: string | null
   source_size_bytes: number | null
   output_size_bytes: number | null
   processing_duration_seconds: number | null

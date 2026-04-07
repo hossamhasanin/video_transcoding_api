@@ -1,17 +1,26 @@
 import os
-import uuid
+import re
+import uuid as uuid_mod
 import shutil
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request, File, UploadFile
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.core.database import get_db
 from app.core.config import settings
 from app.models.job import Job
 from app.models.api_key import ApiKey
 from app.models.user import User
-from app.schemas.playground import TestJobRequest, TestJobResponse, UploadResponse
+from app.schemas.playground import (
+    TestJobRequest,
+    TestJobResponse,
+    TestJobStatusResponse,
+    UploadResponse,
+)
 from app.api.dependencies import get_current_user
+from app.core.security import decode_token
 from app.core.rate_limit import limiter
 from app.worker.tasks import transcode_video_task
 from app.core.storage import upload_file_to_s3, get_s3_client
@@ -91,6 +100,179 @@ def submit_test_job(
     return new_job
 
 
+@router.get(
+    "/test-job/{job_id}",
+    response_model=TestJobStatusResponse,
+    summary="Get playground test job status",
+    description="Polls for the current status of a playground test job. "
+    "Returns output URL and error details when available.",
+)
+@limiter.limit("30/minute")
+def get_test_job_status(
+    request: Request,
+    job_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id, Job.user_id == current_user.id)
+        .first()
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+# ---------------------------------------------------------------------------
+# Helper: resolve user from JWT in header or query param
+# ---------------------------------------------------------------------------
+
+def _resolve_user(
+    token: str | None,
+    db: Session,
+) -> User:
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = decode_token(token, expected_type="access")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user = db.query(User).filter(User.id == payload["sub"]).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+def _extract_bearer_token(request: Request) -> str | None:
+    """Pull JWT from Authorization: Bearer <token> header."""
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Stream proxy — serves transcoded files via same-origin to avoid CORS
+# ---------------------------------------------------------------------------
+
+_CONTENT_TYPES = {
+    ".m3u8": "application/vnd.apple.mpegurl",
+    ".ts": "video/mp2t",
+    ".mp4": "video/mp4",
+    ".vtt": "text/vtt",
+    ".srt": "application/x-subrip",
+    ".wav": "audio/wav",
+}
+
+
+@router.get(
+    "/stream/{job_id}/{file_path:path}",
+    summary="Stream a transcoded file (proxy to avoid CORS)",
+    description="Proxies transcoded output files from S3/R2 through the API "
+    "so the browser can access them without cross-origin issues. "
+    "Accepts JWT via Authorization header or ?token= query parameter.",
+)
+@limiter.limit("60/minute")
+def stream_job_file(
+    request: Request,
+    job_id: UUID,
+    file_path: str,
+    token: str | None = Query(None, description="JWT access token"),
+    db: Session = Depends(get_db),
+):
+    # Auth: try Authorization header first (hls.js xhrSetup), then query
+    # param (<video>/<track> src cannot set headers).
+    bearer = _extract_bearer_token(request)
+    user = _resolve_user(bearer or token, db)
+
+    job = db.query(Job).filter(
+        Job.id == job_id, Job.user_id == user.id
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Only allow streaming completed jobs
+    if job.status != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job status is '{job.status}', not 'completed'",
+        )
+
+    # Sanitise path — prevent directory traversal
+    if ".." in file_path or file_path.startswith("/"):
+        raise HTTPException(status_code=400, detail="Invalid file path")
+
+    s3_key = f"transcoded/{job_id}/{file_path}"
+    bucket = settings.R2_BUCKET_NAME
+    s3 = get_s3_client()
+
+    # Determine content type
+    _, ext = os.path.splitext(file_path)
+    content_type = _CONTENT_TYPES.get(ext, "application/octet-stream")
+
+    try:
+        resp = s3.get_object(Bucket=bucket, Key=s3_key)
+    except s3.exceptions.NoSuchKey:
+        raise HTTPException(status_code=404, detail="File not found")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to fetch file")
+
+    body = resp["Body"]
+
+    # For HLS manifests, rewrite relative URLs to proxy paths
+    if ext == ".m3u8":
+        raw = body.read().decode("utf-8")
+        base = f"/api/v1/playground/stream/{job_id}"
+        # Preserve the subdirectory for relative segment references.
+        # e.g. file_path="720p/index.m3u8" → prefix="720p"
+        dir_prefix = file_path.rsplit("/", 1)[0] + "/" if "/" in file_path else ""
+        # Propagate the token so all subsequent requests carry auth
+        tok_param = f"?token={token}" if token else ""
+        bearer_param = ""
+        if not token and bearer:
+            bearer_param = f"?token={bearer}"
+
+        auth_qs = tok_param or bearer_param
+
+        def _rewrite_line(m: re.Match) -> str:
+            url = m.group(2)
+            if (
+                url
+                and not url.startswith("#")
+                and not url.startswith("http")
+            ):
+                return m.group(1) + f"{base}/{dir_prefix}{url}{auth_qs}"
+            return m.group(0)
+
+        rewritten = re.sub(
+            r"^((?:#EXT-X-STREAM-INF:.*\n)?)(.*)$",
+            _rewrite_line,
+            raw,
+            flags=re.MULTILINE,
+        )
+        return Response(
+            content=rewritten,
+            media_type=content_type,
+        )
+
+    # For binary files, stream directly
+    def _iter():
+        try:
+            while True:
+                chunk = body.read(64 * 1024)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            body.close()
+
+    return StreamingResponse(
+        _iter(),
+        media_type=content_type,
+    )
+
+
 ALLOWED_VIDEO_TYPES = {
     "video/mp4",
     "video/quicktime",
@@ -150,7 +332,7 @@ def upload_video(
             f"exceeds limit of {settings.MAX_UPLOAD_SIZE_MB}MB.",
         )
 
-    file_id = str(uuid.uuid4())
+    file_id = str(uuid_mod.uuid4())
     safe_filename = f"{file_id}{ext}"
 
     # Upload to S3/R2

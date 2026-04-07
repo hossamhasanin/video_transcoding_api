@@ -34,6 +34,11 @@ class TestJobResponse(BaseModel):
         from_attributes = True
 
 
+class TestJobStatusResponse(TestJobResponse):
+    output_url: Optional[str] = None
+    error_message: Optional[str] = None
+
+
 class UploadResponse(BaseModel):
     source_url: str
     filename: str

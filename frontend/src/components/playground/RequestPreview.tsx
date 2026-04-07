@@ -7,10 +7,9 @@ type PreviewTab = "request" | "response";
 interface RequestPreviewProps {
   payload: RequestPreviewPayload;
   response: TestJobResponse | null;
-  error: string | null;
-  submitting: boolean;
   activeTab: PreviewTab;
   onTabChange: (tab: PreviewTab) => void;
+  resultContent: React.ReactNode;
 }
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api/v1";
@@ -72,10 +71,9 @@ async function copyToClipboard(text: string): Promise<boolean> {
 function RequestPreview({
   payload,
   response,
-  error,
-  submitting,
   activeTab,
   onTabChange,
+  resultContent,
 }: RequestPreviewProps): React.ReactElement {
   const json = formatJson(payload);
   const highlighted = highlightJson(json);
@@ -121,7 +119,7 @@ function RequestPreview({
               : "text-muted hover:text-[#333]"
           }`}
         >
-          Response
+          Result
           {response && (
             <span className="ml-1.5 inline-block w-2 h-2 rounded-full bg-green-500 align-middle" />
           )}
@@ -171,54 +169,10 @@ function RequestPreview({
         </>
       )}
 
-      {/* Response tab content */}
+      {/* Result tab content */}
       {activeTab === "response" && (
         <div className="flex-1 overflow-y-auto bg-pg-panel-bg p-4 rounded-b-lg">
-          {submitting && (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin h-8 w-8 border-2 border-brand border-t-transparent rounded-full" />
-              <span className="ml-3 text-sm text-muted">Submitting job...</span>
-            </div>
-          )}
-
-          {error && !submitting && (
-            <div className="bg-danger/10 border border-danger/30 rounded-lg p-4">
-              <p className="text-sm font-medium text-danger">Error</p>
-              <p className="text-sm text-danger/80 mt-1">{error}</p>
-            </div>
-          )}
-
-          {response && !submitting && (
-            <div className="space-y-4">
-              {/* Warning callout */}
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
-                This is a live job — it counts against your account usage and concurrent job limit.
-              </div>
-
-              {/* Status badge */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-[#333]">Status:</span>
-                <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-semibold rounded">
-                  {response.status}
-                </span>
-              </div>
-
-              {/* Response JSON */}
-              <pre className="text-sm leading-relaxed font-mono whitespace-pre-wrap bg-white border border-pg-border rounded-lg p-4">
-                <code
-                  dangerouslySetInnerHTML={{
-                    __html: highlightJson(formatJson(response)),
-                  }}
-                />
-              </pre>
-            </div>
-          )}
-
-          {!submitting && !error && !response && (
-            <div className="flex items-center justify-center py-12 text-sm text-muted">
-              Submit a test job to see the response here.
-            </div>
-          )}
+          {resultContent}
         </div>
       )}
     </div>
