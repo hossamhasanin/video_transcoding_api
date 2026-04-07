@@ -106,9 +106,7 @@ def transcode_video_task(self, job_id: str):
                         f"key={s3_key}"
                     )
                     s3 = get_s3_client()
-                    head = s3.head_object(
-                        Bucket=settings.R2_BUCKET_NAME, Key=s3_key
-                    )
+                    head = s3.head_object(Bucket=settings.R2_BUCKET_NAME, Key=s3_key)
                     content_length = head.get("ContentLength", 0)
                     if content_length > max_size_bytes:
                         raise ValueError(
@@ -116,9 +114,7 @@ def transcode_video_task(self, job_id: str):
                             f"{content_length / (1024*1024):.1f}MB "
                             f"exceeds limit of {settings.MAX_UPLOAD_SIZE_MB}MB"
                         )
-                    s3.download_file(
-                        settings.R2_BUCKET_NAME, s3_key, source_file_path
-                    )
+                    s3.download_file(settings.R2_BUCKET_NAME, s3_key, source_file_path)
                     source_size = os.path.getsize(source_file_path)
                     print(
                         f"Source file size: {source_size} bytes "
@@ -140,9 +136,7 @@ def transcode_video_task(self, job_id: str):
                         )
 
                     print(f"Downloading source video from {source_url}")
-                    response = requests.get(
-                        source_url, stream=True, timeout=(10, 600)
-                    )
+                    response = requests.get(source_url, stream=True, timeout=(10, 600))
                     response.raise_for_status()
                     downloaded_bytes = 0
                     with open(source_file_path, "wb") as f:

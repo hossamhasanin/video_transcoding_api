@@ -45,7 +45,9 @@ app.include_router(keys.router, prefix=f"{settings.API_V1_STR}/keys", tags=["key
 app.include_router(usage.router, prefix=f"{settings.API_V1_STR}/usage", tags=["usage"])
 
 # Playground routes (protected by JWT bearer)
-app.include_router(playground.router, prefix=f"{settings.API_V1_STR}/playground", tags=["playground"])
+app.include_router(
+    playground.router, prefix=f"{settings.API_V1_STR}/playground", tags=["playground"]
+)
 
 
 @app.get("/health")

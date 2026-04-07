@@ -3,7 +3,16 @@ import re
 import uuid as uuid_mod
 import shutil
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Request, File, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    status,
+    Request,
+    File,
+    UploadFile,
+)
 from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -114,11 +123,7 @@ def get_test_job_status(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id, Job.user_id == current_user.id)
-        .first()
-    )
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == current_user.id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
@@ -127,6 +132,7 @@ def get_test_job_status(
 # ---------------------------------------------------------------------------
 # Helper: resolve user from JWT in header or query param
 # ---------------------------------------------------------------------------
+
 
 def _resolve_user(
     token: str | None,
@@ -186,9 +192,7 @@ def stream_job_file(
     bearer = _extract_bearer_token(request)
     user = _resolve_user(bearer or token, db)
 
-    job = db.query(Job).filter(
-        Job.id == job_id, Job.user_id == user.id
-    ).first()
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == user.id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -237,11 +241,7 @@ def stream_job_file(
 
         def _rewrite_line(m: re.Match) -> str:
             url = m.group(2)
-            if (
-                url
-                and not url.startswith("#")
-                and not url.startswith("http")
-            ):
+            if url and not url.startswith("#") and not url.startswith("http"):
                 return m.group(1) + f"{base}/{dir_prefix}{url}{auth_qs}"
             return m.group(0)
 
