@@ -5,7 +5,7 @@ from slowapi.errors import RateLimitExceeded
 from app.core.rate_limit import limiter
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.api.endpoints import auth, jobs, keys, usage, playground
+from app.api.endpoints import auth, jobs, keys, usage, playground, uploads
 
 setup_logging()
 
@@ -42,6 +42,9 @@ app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["aut
 # API routes (protected by API key)
 app.include_router(jobs.router, prefix=f"{settings.API_V1_STR}/jobs", tags=["jobs"])
 app.include_router(keys.router, prefix=f"{settings.API_V1_STR}/keys", tags=["keys"])
+app.include_router(
+    uploads.router, prefix=f"{settings.API_V1_STR}/uploads", tags=["uploads"]
+)
 app.include_router(usage.router, prefix=f"{settings.API_V1_STR}/usage", tags=["usage"])
 
 # Playground routes (protected by JWT bearer)

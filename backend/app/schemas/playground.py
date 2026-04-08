@@ -4,6 +4,8 @@ from typing import Optional, Literal
 
 from app.schemas.job import HLSConfig
 
+from app.schemas.job import HLSConfig
+
 
 class TestJobRequest(BaseModel):
     source_url: str
@@ -37,6 +39,9 @@ class TestJobResponse(BaseModel):
 class TestJobStatusResponse(TestJobResponse):
     output_url: Optional[str] = None
     error_message: Optional[str] = None
+    output_url_expires_at: Optional[datetime] = None
+    output_zip_url: Optional[str] = None
+    output_zip_url_expires_at: Optional[datetime] = None
 
 
 class UploadResponse(BaseModel):

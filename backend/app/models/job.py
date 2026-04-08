@@ -40,6 +40,7 @@ class Job(Base):
     )  # pending, processing, completed, failed
     source_url = Column(String(2048), nullable=False)
     output_url = Column(String(2048), nullable=True)
+    output_zip_url = Column(String(2048), nullable=True)
     error_message = Column(Text, nullable=True)
     webhook_url = Column(String(2048), nullable=True)
     preset = Column(String(50), nullable=True)

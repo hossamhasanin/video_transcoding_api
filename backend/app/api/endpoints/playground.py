@@ -3,6 +3,8 @@ import re
 import uuid as uuid_mod
 import shutil
 
+from datetime import datetime, timezone, timedelta
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -32,10 +34,85 @@ from app.api.dependencies import get_current_user
 from app.core.security import decode_token
 from app.core.rate_limit import limiter
 from app.worker.tasks import transcode_video_task
-from app.core.storage import upload_file_to_s3, get_s3_client
+from app.core.storage import (
+    upload_file_to_s3,
+    get_s3_client,
+    generate_presigned_download_url,
+    extract_r2_key,
+    CONTENT_TYPES,
+)
 from sqlalchemy import or_
 
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# Helpers: build accessible URLs for playground test jobs
+# ---------------------------------------------------------------------------
+
+
+def _build_output_url_for_playground(
+    job: Job, base_url: str
+) -> tuple[str | None, datetime | None]:
+    """Return (accessible_output_url, expires_at) for a playground test job."""
+    if job.status != "completed" or not job.output_url:
+        return None, None
+
+    if job.output_format == "hls":
+        url = f"{base_url}{settings.API_V1_STR}/playground/stream/{job.id}/master.m3u8"
+        return url, None
+
+    key = extract_r2_key(job.output_url)
+    if not key:
+        return job.output_url, None
+
+    presigned = generate_presigned_download_url(
+        settings.R2_BUCKET_NAME,
+        key,
+        expires_in=settings.PRESIGNED_URL_EXPIRES_SECONDS,
+    )
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        seconds=settings.PRESIGNED_URL_EXPIRES_SECONDS
+    )
+    return presigned, expires_at
+
+
+def _build_subtitle_url_for_playground(job: Job) -> str | None:
+    """Return an accessible URL for subtitles (presigned GET URL)."""
+    if job.status != "completed" or not job.subtitle_url:
+        return None
+
+    key = extract_r2_key(job.subtitle_url)
+    if not key:
+        return job.subtitle_url
+
+    return generate_presigned_download_url(
+        settings.R2_BUCKET_NAME,
+        key,
+        expires_in=settings.PRESIGNED_URL_EXPIRES_SECONDS,
+    )
+
+
+def _build_output_zip_url_for_playground(
+    job: Job,
+) -> tuple[str | None, datetime | None]:
+    """Return (presigned_zip_url, expires_at) for HLS playground jobs."""
+    if job.status != "completed" or not job.output_zip_url:
+        return None, None
+
+    key = extract_r2_key(job.output_zip_url)
+    if not key:
+        return job.output_zip_url, None
+
+    presigned = generate_presigned_download_url(
+        settings.R2_BUCKET_NAME,
+        key,
+        expires_in=settings.PRESIGNED_URL_EXPIRES_SECONDS,
+    )
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        seconds=settings.PRESIGNED_URL_EXPIRES_SECONDS
+    )
+    return presigned, expires_at
 
 
 @router.post(
@@ -126,7 +203,33 @@ def get_test_job_status(
     job = db.query(Job).filter(Job.id == job_id, Job.user_id == current_user.id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+
+    base_url = str(request.base_url).rstrip("/")
+    output_url, output_url_expires_at = _build_output_url_for_playground(job, base_url)
+    subtitle_url = _build_subtitle_url_for_playground(job)
+    output_zip_url, output_zip_url_expires_at = _build_output_zip_url_for_playground(job)
+
+    return TestJobStatusResponse(
+        id=job.id,
+        status=job.status,
+        source_url=job.source_url,
+        webhook_url=job.webhook_url,
+        preset=job.preset,
+        output_format=job.output_format,
+        generate_subtitles=job.generate_subtitles,
+        subtitle_url=subtitle_url,
+        hls_config=job.hls_config,
+        source_size_bytes=job.source_size_bytes,
+        output_size_bytes=job.output_size_bytes,
+        processing_duration_seconds=job.processing_duration_seconds,
+        created_at=job.created_at,
+        updated_at=job.updated_at,
+        output_url=output_url,
+        output_url_expires_at=output_url_expires_at,
+        output_zip_url=output_zip_url,
+        output_zip_url_expires_at=output_zip_url_expires_at,
+        error_message=job.error_message,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -161,15 +264,6 @@ def _extract_bearer_token(request: Request) -> str | None:
 # ---------------------------------------------------------------------------
 # Stream proxy — serves transcoded files via same-origin to avoid CORS
 # ---------------------------------------------------------------------------
-
-_CONTENT_TYPES = {
-    ".m3u8": "application/vnd.apple.mpegurl",
-    ".ts": "video/mp2t",
-    ".mp4": "video/mp4",
-    ".vtt": "text/vtt",
-    ".srt": "application/x-subrip",
-    ".wav": "audio/wav",
-}
 
 
 @router.get(
@@ -213,7 +307,7 @@ def stream_job_file(
 
     # Determine content type
     _, ext = os.path.splitext(file_path)
-    content_type = _CONTENT_TYPES.get(ext, "application/octet-stream")
+    content_type = CONTENT_TYPES.get(ext, "application/octet-stream")
 
     try:
         resp = s3.get_object(Bucket=bucket, Key=s3_key)

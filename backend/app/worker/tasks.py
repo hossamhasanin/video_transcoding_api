@@ -5,14 +5,16 @@ import tempfile
 import requests
 import re
 import shutil
+import zipfile
 from urllib.parse import urlparse
 from botocore.exceptions import ClientError
 
 from app.core.celery_app import celery_app
 from app.core.database import SessionLocal
 from app.models.job import Job
+from app.models.upload import PendingUpload
 from app.worker.transcoder import process_video_transcode
-from app.core.storage import get_s3_client, upload_directory_to_s3
+from app.core.storage import get_s3_client, upload_directory_to_s3, extract_r2_key
 from app.core.config import settings
 
 
@@ -27,31 +29,15 @@ def _get_dir_size(path: str) -> int:
     return total
 
 
-def _extract_r2_key(source_url: str) -> str | None:
-    """Extract the S3 object key from an R2/S3 URL. Returns None if not an R2/S3 URL."""
-    parsed = urlparse(source_url)
-    host = parsed.hostname or ""
-    path = parsed.path.lstrip("/")
-
-    if host.endswith(".r2.cloudflarestorage.com"):
-        # Virtual-hosted style: bucket.account.r2.cloudflarestorage.com/key
-        if host.startswith(f"{settings.R2_BUCKET_NAME}."):
-            return path
-        # Path style: account.r2.cloudflarestorage.com/bucket/key
-        parts = path.split("/", 1)
-        if len(parts) > 1 and parts[0] == settings.R2_BUCKET_NAME:
-            return parts[1]
-        return None
-
-    # S3: bucket.s3.amazonaws.com/key or s3.amazonaws.com/bucket/key
-    if host.endswith(".s3.amazonaws.com"):
-        return path
-    if host == "s3.amazonaws.com":
-        parts = path.split("/", 1)
-        if len(parts) > 1:
-            return parts[1]
-
-    return None
+def _zip_directory(directory_path: str, zip_path: str) -> str:
+    """Create a zip archive of the given directory."""
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, dirs, files in os.walk(directory_path):
+            for filename in files:
+                file_path = os.path.join(root, filename)
+                arcname = os.path.relpath(file_path, directory_path)
+                zf.write(file_path, arcname)
+    return zip_path
 
 
 @celery_app.task(name="transcode_video", bind=True, max_retries=3)
@@ -99,7 +85,7 @@ def transcode_video_task(self, job_id: str):
                 max_size_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
                 # Detect R2/S3 URLs and download via boto3
-                s3_key = _extract_r2_key(source_url)
+                s3_key = extract_r2_key(source_url)
                 if s3_key:
                     print(
                         f"Downloading from R2: bucket={settings.R2_BUCKET_NAME}, "
@@ -208,6 +194,18 @@ def transcode_video_task(self, job_id: str):
             if output_format == "hls":
                 upload_directory_to_s3(output_path, bucket_name, base_s3_prefix)
                 object_key = f"{base_s3_prefix}/master.m3u8"
+
+                # Zip the HLS directory and upload
+                zip_local_path = os.path.join(temp_dir, f"output_{job_id}_hls.zip")
+                _zip_directory(output_path, zip_local_path)
+                zip_s3_key = f"{base_s3_prefix}/hls_output.zip"
+                s3 = get_s3_client()
+                s3.upload_file(
+                    zip_local_path,
+                    bucket_name,
+                    zip_s3_key,
+                    ExtraArgs={"ContentType": "application/zip"},
+                )
             else:
                 s3 = get_s3_client()
                 object_key = f"{base_s3_prefix}/output.mp4"
@@ -223,6 +221,15 @@ def transcode_video_task(self, job_id: str):
             else:
                 public_url = f"https://{bucket_name}.s3.amazonaws.com/{object_key}"
 
+            # Build zip URL for HLS jobs
+            zip_public_url = None
+            if output_format == "hls":
+                zip_object_key = f"{base_s3_prefix}/hls_output.zip"
+                if settings.R2_ACCOUNT_ID:
+                    zip_public_url = f"https://{settings.R2_BUCKET_NAME}.{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{zip_object_key}"
+                else:
+                    zip_public_url = f"https://{bucket_name}.s3.amazonaws.com/{zip_object_key}"
+
         # Calculate processing duration
         processing_duration = time.time() - start_time
         print(f"Job {job_id} transcode completed in {processing_duration:.1f} seconds")
@@ -232,6 +239,7 @@ def transcode_video_task(self, job_id: str):
             job_complete = db_completion.query(Job).filter(Job.id == job_id).first()
             if job_complete:
                 job_complete.output_url = public_url
+                job_complete.output_zip_url = zip_public_url
                 job_complete.source_size_bytes = source_size
                 job_complete.output_size_bytes = output_size
                 job_complete.processing_duration_seconds = round(processing_duration, 2)
@@ -380,3 +388,37 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
 
                 send_webhook_task.delay(job_id)
             raise
+
+
+@celery_app.task(name="cleanup_abandoned_uploads")
+def cleanup_abandoned_uploads():
+    """Remove abandoned pending uploads from R2 and DB."""
+    from datetime import datetime, timedelta
+    from app.core.storage import delete_object
+
+    cutoff = datetime.utcnow() - timedelta(
+        hours=settings.UPLOAD_AUTO_CLEANUP_HOURS
+    )
+    db = SessionLocal()
+    try:
+        abandoned = (
+            db.query(PendingUpload)
+            .filter(
+                PendingUpload.status == "pending",
+                PendingUpload.created_at < cutoff,
+            )
+            .all()
+        )
+        cleaned = 0
+        for upload in abandoned:
+            try:
+                delete_object(settings.R2_BUCKET_NAME, upload.s3_key)
+            except Exception:
+                pass  # Object may not exist
+            upload.status = "expired"
+            upload.updated_at = datetime.utcnow()
+            cleaned += 1
+        db.commit()
+        return f"Cleaned up {cleaned} abandoned uploads"
+    finally:
+        db.close()

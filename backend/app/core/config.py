@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     UPLOAD_SOURCE_PREFIX: str = "uploads/playground"
     LOCAL_UPLOAD_DIR: str = "/tmp/transcode_uploads"
 
+    # Presigned Upload (API)
+    PRESIGNED_URL_EXPIRES_SECONDS: int = 3600
+    UPLOAD_API_SOURCE_PREFIX: str = "uploads/api"
+    MAX_PENDING_UPLOADS_PER_USER: int = 5
+    UPLOAD_AUTO_CLEANUP_HOURS: int = 24
+
+    # API base URL (used by workers to build accessible output URLs for webhooks)
+    API_BASE_URL: str = "http://localhost:8000"
+
     # Webhooks
     WEBHOOK_SECRET_KEY: str = "your-secret-key"
 

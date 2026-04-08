@@ -55,12 +55,21 @@ class HLSConfig(BaseModel):
 
 
 class JobCreate(BaseModel):
-    source_url: str
+    source_url: Optional[str] = None
+    upload_id: Optional[UUID4] = None
     preset: Optional[Literal["tiktok", "youtube", "instagram"]] = None
     output_format: Optional[Literal["mp4", "hls"]] = "mp4"
     webhook_url: Optional[HttpUrl] = None
     generate_subtitles: Optional[bool] = False
     hls_config: Optional[HLSConfig] = None
+
+    @model_validator(mode="after")
+    def validate_source(self):
+        if not self.source_url and not self.upload_id:
+            raise ValueError("Either source_url or upload_id must be provided")
+        if self.source_url and self.upload_id:
+            raise ValueError("Provide either source_url or upload_id, not both")
+        return self
 
 
 class JobResponse(BaseModel):
@@ -86,3 +95,6 @@ class JobResponse(BaseModel):
 class JobStatusResponse(JobResponse):
     output_url: Optional[str] = None
     error_message: Optional[str] = None
+    output_url_expires_at: Optional[datetime] = None
+    output_zip_url: Optional[str] = None
+    output_zip_url_expires_at: Optional[datetime] = None

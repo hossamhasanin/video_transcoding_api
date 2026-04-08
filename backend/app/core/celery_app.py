@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from app.core.config import settings
 
 celery_app = Celery(
@@ -21,4 +22,10 @@ celery_app.conf.update(
         "send_webhook": {"queue": "default"},
     },
     task_default_queue="default",
+    beat_schedule={
+        "cleanup-abandoned-uploads": {
+            "task": "cleanup_abandoned_uploads",
+            "schedule": crontab(hour="*/6", minute=0),
+        },
+    },
 )
