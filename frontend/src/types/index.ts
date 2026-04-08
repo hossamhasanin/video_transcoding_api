@@ -129,6 +129,13 @@ export interface RequestPreviewPayload {
   }
 }
 
+export interface UploadMetadata {
+  source_url: string
+  filename: string
+  size_bytes: number
+  content_type: string
+}
+
 export interface TestJobResponse {
   id: string
   status: string

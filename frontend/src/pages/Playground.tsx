@@ -6,8 +6,10 @@ import JobResultPanel from "../components/playground/JobResultPanel";
 import type { TestJobResponse, UploadResponse } from "../types/index";
 import { usePlaygroundForm } from "../hooks/usePlaygroundForm";
 import { useJobPolling } from "../hooks/useJobPolling";
+import { useApiFlow } from "../hooks/useApiFlow";
 import { MAX_FILE_SIZE_MB } from "../components/playground/FileUploader";
 import type { UploadPhase } from "../components/playground/FileUploader";
+import type { FlowPhase } from "../types/apiFlow";
 import api from "../api";
 
 function Playground(): React.ReactElement {
@@ -39,6 +41,31 @@ function Playground(): React.ReactElement {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
+  // API flow state
+  const [uploadMetadata, setUploadMetadata] = useState<UploadResponse | null>(null);
+  const [fileInfo, setFileInfo] = useState<{ name: string; size: number; type: string } | null>(null);
+
+  // Derive flow phase from existing states
+  const flowPhase: FlowPhase = (() => {
+    if (effectiveJob?.status === "completed" || effectiveJob?.status === "failed") return "completed";
+    if (error) return "failed";
+    if (polling) return "polling_job";
+    if (submitting) return "submitting";
+    if (uploadPhase === "uploading" || uploadPhase === "processing") return "uploading";
+    if (uploadMetadata && !submitting) return "upload_complete";
+    return "idle";
+  })();
+
+  const { steps: flowSteps, activeStep: flowActiveStep } = useApiFlow(
+    state,
+    previewPayload,
+    uploadMetadata,
+    fileInfo,
+    flowPhase,
+    response,
+    polledJob,
+  );
+
   const handleFileSelect = useCallback(
     async (file: File) => {
       // Client-side validation
@@ -53,6 +80,7 @@ function Playground(): React.ReactElement {
       setUploadPhase("uploading");
       setUploadProgress(0);
       setUploadedFileName(null);
+      setFileInfo({ name: file.name, size: file.size, type: file.type });
 
       try {
         const formData = new FormData();
@@ -77,6 +105,7 @@ function Playground(): React.ReactElement {
 
         setField("source_url", data.source_url);
         setUploadedFileName(file.name);
+        setUploadMetadata(data);
       } catch (err: unknown) {
         if (err && typeof err === "object" && "response" in err) {
           const axiosErr = err as {
@@ -100,6 +129,8 @@ function Playground(): React.ReactElement {
     setUploadError(null);
     setUploadProgress(0);
     setUploadPhase("idle");
+    setUploadMetadata(null);
+    setFileInfo(null);
     setField("source_url", "");
   }, [setField]);
 
@@ -136,6 +167,8 @@ function Playground(): React.ReactElement {
     setResponse(null);
     setError(null);
     setActiveTab("request");
+    setUploadMetadata(null);
+    setFileInfo(null);
     resetForm();
   }, [resetForm]);
 
@@ -194,9 +227,9 @@ function Playground(): React.ReactElement {
     <div className="flex flex-col h-[calc(100vh-80px)]">
       <h1 className="mb-4">Playground</h1>
 
-      <div className="flex gap-6 flex-1 min-h-0">
+      <div className="flex gap-6 flex-1 min-h-0 overflow-hidden">
         {/* Left panel — Form (~55%) */}
-        <div className="w-[55%] min-w-0 bg-pg-panel-bg border border-pg-border rounded-lg overflow-y-auto p-6">
+        <div className="w-[55%] shrink-0 min-w-0 bg-pg-panel-bg border border-pg-border rounded-lg overflow-y-auto overflow-x-hidden p-6">
           <h2 className="text-lg font-semibold mb-4 text-[#333]">
             Configuration
           </h2>
@@ -220,13 +253,15 @@ function Playground(): React.ReactElement {
         </div>
 
         {/* Right panel — Preview (~45%) */}
-        <div className="w-[45%] border border-pg-border rounded-lg overflow-hidden">
+        <div className="w-[45%] min-w-0 border border-pg-border rounded-lg overflow-hidden">
           <RequestPreview
             payload={previewPayload}
             response={effectiveJob}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             resultContent={resultContent}
+            flowSteps={flowSteps}
+            flowActiveStep={flowActiveStep}
           />
         </div>
       </div>

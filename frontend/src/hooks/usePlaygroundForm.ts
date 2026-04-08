@@ -197,6 +197,57 @@ function buildPreviewPayload(state: PlaygroundFormState): RequestPreviewPayload 
   return payload;
 }
 
+/**
+ * Build a job creation payload using `upload_id` instead of `source_url`.
+ * This represents the real production API flow after going through the
+ * presign-upload-poll cycle.
+ */
+export function buildRealApiJobPayload(state: PlaygroundFormState, uploadId: string): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    upload_id: uploadId,
+  };
+
+  if (state.output_format !== "mp4") {
+    payload.output_format = state.output_format;
+  }
+  if (state.preset !== null) {
+    payload.preset = state.preset;
+  }
+  if (state.generate_subtitles !== false) {
+    payload.generate_subtitles = state.generate_subtitles;
+  }
+  if (state.webhook_url !== "") {
+    payload.webhook_url = state.webhook_url;
+  }
+
+  if (state.output_format === "hls") {
+    const hls = state.hls_config;
+    const hlsOut: Record<string, unknown> = {};
+
+    if (hls.segment_duration !== 10) {
+      hlsOut.segment_duration = hls.segment_duration;
+    }
+    if (hls.video_codec_preset !== "fast") {
+      hlsOut.video_codec_preset = hls.video_codec_preset;
+    }
+    if (hls.video_crf !== 23) {
+      hlsOut.video_crf = hls.video_crf;
+    }
+    if (hls.video_profile !== "high") {
+      hlsOut.video_profile = hls.video_profile;
+    }
+    if (hls.renditions.length > 0) {
+      hlsOut.renditions = hls.renditions.map(buildRenditionPayload);
+    }
+
+    if (Object.keys(hlsOut).length > 0) {
+      payload.hls_config = hlsOut;
+    }
+  }
+
+  return payload;
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
