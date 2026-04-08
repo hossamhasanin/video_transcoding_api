@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from fastapi.responses import Response, StreamingResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -12,7 +13,7 @@ from app.core.config import settings
 from app.models.job import Job
 from app.models.api_key import ApiKey
 from app.models.upload import PendingUpload
-from app.schemas.job import JobCreate, JobResponse, JobStatusResponse
+from app.schemas.job import JobCreate, JobResponse, JobStatusResponse, PaginatedJobResponse
 from app.api.dependencies import (
     get_current_api_key,
     check_concurrent_jobs_limit,
@@ -163,6 +164,47 @@ def _build_output_zip_url(job: Job) -> tuple[str | None, datetime | None]:
         seconds=settings.PRESIGNED_URL_EXPIRES_SECONDS
     )
     return presigned, expires_at
+
+
+@router.get(
+    "/",
+    response_model=PaginatedJobResponse,
+    summary="List transcoding jobs",
+    description="Retrieves a paginated list of transcoding jobs for the authenticated user. "
+    "Supports filtering by status, output format, and preset. "
+    "Results are sorted by creation date, newest first.",
+)
+@limiter.limit("30/minute")
+def list_jobs(
+    request: Request,
+    status: str | None = Query(
+        None, description="Filter by status: pending, processing, completed, failed"
+    ),
+    output_format: str | None = Query(
+        None, description="Filter by output format: mp4, hls"
+    ),
+    preset: str | None = Query(
+        None, description="Filter by preset: tiktok, youtube, instagram"
+    ),
+    limit: int = Query(50, ge=1, le=100, description="Number of jobs to return"),
+    offset: int = Query(0, ge=0, description="Number of jobs to skip"),
+    api_key: ApiKey = Depends(get_current_api_key),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Job).filter(Job.user_id == api_key.user_id)
+
+    if status is not None:
+        query = query.filter(Job.status == status)
+    if output_format is not None:
+        query = query.filter(Job.output_format == output_format)
+    if preset is not None:
+        query = query.filter(Job.preset == preset)
+
+    total = query.count()
+
+    jobs = query.order_by(Job.created_at.desc()).offset(offset).limit(limit).all()
+
+    return PaginatedJobResponse(items=jobs, total=total, limit=limit, offset=offset)
 
 
 @router.get(

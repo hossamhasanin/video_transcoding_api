@@ -98,3 +98,10 @@ class JobStatusResponse(JobResponse):
     output_url_expires_at: Optional[datetime] = None
     output_zip_url: Optional[str] = None
     output_zip_url_expires_at: Optional[datetime] = None
+
+
+class PaginatedJobResponse(BaseModel):
+    items: List[JobResponse]
+    total: int
+    limit: int
+    offset: int
