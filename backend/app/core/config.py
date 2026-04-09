@@ -57,6 +57,9 @@ class Settings(BaseSettings):
 
     # Webhooks
     WEBHOOK_SECRET_KEY: str = "your-secret-key"
+    WEBHOOK_MAX_RETRIES: int = 3
+    WEBHOOK_BACKOFF_BASE: int = 5
+    WEBHOOK_RESPONSE_BODY_MAX_LENGTH: int = 1000
 
     model_config = SettingsConfigDict(
         env_file=".env", case_sensitive=True, extra="ignore"

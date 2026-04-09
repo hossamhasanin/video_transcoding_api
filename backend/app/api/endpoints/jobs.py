@@ -18,11 +18,16 @@ from app.core.config import settings
 from app.models.job import Job
 from app.models.api_key import ApiKey
 from app.models.upload import PendingUpload
+from app.models.webhook_delivery import WebhookDeliveryLog
 from app.schemas.job import (
     JobCreate,
     JobResponse,
     JobStatusResponse,
     PaginatedJobResponse,
+)
+from app.schemas.webhook import (
+    WebhookDeliveryLogResponse,
+    PaginatedWebhookDeliveryResponse,
 )
 from app.api.dependencies import (
     get_current_api_key,
@@ -518,3 +523,42 @@ def stream_job_output(
             body.close()
 
     return StreamingResponse(_iter(), media_type=content_type)
+
+
+@router.get(
+    "/{tracking_id}/deliveries",
+    response_model=PaginatedWebhookDeliveryResponse,
+    summary="List webhook delivery attempts",
+    description="Retrieves a paginated list of webhook delivery attempts for a specific job.",
+)
+@limiter.limit("30/minute")
+def list_webhook_deliveries(
+    request: Request,
+    tracking_id: UUID,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    api_key: ApiKey = Depends(get_current_api_key),
+    db: Session = Depends(get_db),
+):
+    job = (
+        db.query(Job)
+        .filter(Job.id == tracking_id, Job.user_id == api_key.user_id)
+        .first()
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    query = db.query(WebhookDeliveryLog).filter(
+        WebhookDeliveryLog.job_id == tracking_id
+    )
+    total = query.count()
+    logs = (
+        query.order_by(WebhookDeliveryLog.delivered_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    return PaginatedWebhookDeliveryResponse(
+        items=logs, total=total, limit=limit, offset=offset
+    )

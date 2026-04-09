@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.job import Job
 from app.models.user import User
+from app.models.webhook_delivery import WebhookDeliveryLog
 from app.schemas.job import JobStatusResponse
 from app.core.security import generate_hmac_signature
 from app.core.storage import extract_r2_key, generate_presigned_download_url
@@ -85,15 +86,39 @@ def _build_output_zip_url_for_webhook(job: Job) -> tuple[str | None, str | None]
     return presigned, expires_at.isoformat()
 
 
+def _persist_delivery_log(
+    db,
+    job_id,
+    event_type,
+    attempt_number,
+    status_code,
+    response_body,
+    error_message,
+):
+    """Persist a webhook delivery attempt to the database."""
+    max_body_len = settings.WEBHOOK_RESPONSE_BODY_MAX_LENGTH
+    log = WebhookDeliveryLog(
+        job_id=job_id,
+        event_type=event_type,
+        attempt_number=attempt_number,
+        status_code=status_code,
+        response_body=response_body[:max_body_len] if response_body else None,
+        error_message=error_message[:500] if error_message else None,
+        delivered_at=datetime.utcnow(),
+    )
+    db.add(log)
+    db.commit()
+
+
 @celery_app.task(
     name="send_webhook",
     bind=True,
-    max_retries=5,
+    max_retries=settings.WEBHOOK_MAX_RETRIES,
     autoretry_for=(RequestException,),
-    retry_backoff=5,
+    retry_backoff=settings.WEBHOOK_BACKOFF_BASE,
     retry_jitter=True,
 )
-def send_webhook_task(self, job_id: str):
+def send_webhook_task(self, job_id: str, event_type: str = "job.completed"):
     db = SessionLocal()
     try:
         job = db.query(Job).filter(Job.id == job_id).first()
@@ -104,6 +129,7 @@ def send_webhook_task(self, job_id: str):
             )
 
         user = db.query(User).filter(User.id == job.user_id).first()
+        attempt = self.request.retries + 1
 
         # Build accessible URLs instead of raw R2 URLs
         output_url, output_url_expires_at = _build_output_url_for_webhook(job)
@@ -123,6 +149,9 @@ def send_webhook_task(self, job_id: str):
         payload_dict["output_zip_url"] = output_zip_url
         payload_dict["output_zip_url_expires_at"] = output_zip_url_expires_at
 
+        # Add event type to payload
+        payload_dict["event_type"] = event_type
+
         payload_str = json.dumps(payload_dict, sort_keys=True, separators=(",", ":"))
 
         headers = {"Content-Type": "application/json"}
@@ -134,23 +163,53 @@ def send_webhook_task(self, job_id: str):
 
         print(f"Sending webhook for job {job_id} to {job.webhook_url}")
 
-        # Execute the HTTP POST request to the webhook URL
-        response = requests.post(
-            job.webhook_url, data=payload_str, headers=headers, timeout=10
-        )
-        response.raise_for_status()
-        print(
-            f"Webhook delivered successfully for job {job_id}. Status Code: {response.status_code}"
-        )
+        try:
+            response = requests.post(
+                job.webhook_url, data=payload_str, headers=headers, timeout=10
+            )
 
-        return f"Webhook for {job_id} delivered successfully"
+            # Log the attempt before raising so we capture all responses
+            _persist_delivery_log(
+                db,
+                job_id,
+                event_type,
+                attempt,
+                status_code=response.status_code,
+                response_body=response.text[: settings.WEBHOOK_RESPONSE_BODY_MAX_LENGTH],
+                error_message=(
+                    None
+                    if response.ok
+                    else f"HTTP {response.status_code}: {response.reason}"
+                ),
+            )
 
-    except RequestException as e:
-        print(f"Failed to send webhook for job {job_id}: {e}")
-        raise  # Let autoretry_for handle the backoff and retry
+            response.raise_for_status()
+            print(
+                f"Webhook delivered successfully for job {job_id}. "
+                f"Status Code: {response.status_code}"
+            )
+            return f"Webhook for {job_id} delivered successfully"
+
+        except RequestException as e:
+            # Only log here if we didn't already log above (connection-level failures)
+            # HTTPError from raise_for_status() is already logged above
+            if not isinstance(e, requests.HTTPError):
+                _persist_delivery_log(
+                    db,
+                    job_id,
+                    event_type,
+                    attempt,
+                    status_code=None,
+                    response_body=None,
+                    error_message=str(e)[:500],
+                )
+            print(f"Failed to send webhook for job {job_id}: {e}")
+            raise  # Let autoretry_for handle the backoff and retry
+
+    except RequestException:
+        raise  # autoretry_for handles this
     except Exception as e:
         print(f"Unexpected error in webhook delivery for job {job_id}: {e}")
-        # Still retry but with a static delay for non-request exceptions
         raise self.retry(exc=e, countdown=60)
     finally:
         db.close()

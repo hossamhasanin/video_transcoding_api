@@ -63,6 +63,12 @@ def transcode_video_task(self, job_id: str):
         hls_config = job.hls_config
         db.commit()
         publish_event(job_id, "status_change", {"status": "processing"})
+
+        # Fire job.started webhook
+        if webhook_url:
+            from app.worker.webhooks import send_webhook_task
+
+            send_webhook_task.delay(str(job.id), "job.started")
     finally:
         db.close()
 
@@ -282,7 +288,7 @@ def transcode_video_task(self, job_id: str):
             if webhook_url:
                 from app.worker.webhooks import send_webhook_task
 
-                send_webhook_task.delay(job_id)
+                send_webhook_task.delay(job_id, "job.completed")
             return (
                 f"Job {job_id} completed successfully (subtitles skipped or disabled)"
             )
@@ -329,7 +335,7 @@ def transcode_video_task(self, job_id: str):
             if webhook_url:
                 from app.worker.webhooks import send_webhook_task
 
-                send_webhook_task.delay(job_id)
+                send_webhook_task.delay(job_id, "job.failed")
             raise
 
 
@@ -402,7 +408,7 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
         if webhook_url:
             from app.worker.webhooks import send_webhook_task
 
-            send_webhook_task.delay(job_id)
+            send_webhook_task.delay(job_id, "job.completed")
 
         return f"Job {job_id} subtitles completed successfully"
 
@@ -436,7 +442,7 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
             if webhook_url:
                 from app.worker.webhooks import send_webhook_task
 
-                send_webhook_task.delay(job_id)
+                send_webhook_task.delay(job_id, "job.failed")
             raise
 
 
