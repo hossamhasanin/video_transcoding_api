@@ -7,46 +7,72 @@ import type {
   RequestPreviewPayload,
   RenditionPayload,
   SourceMode,
+  HlsTemplateName,
 } from "../types/index";
+
+// ---------------------------------------------------------------------------
+// HLS Templates (mirrors backend HLS_TEMPLATES for instant UI resolution)
+// ---------------------------------------------------------------------------
+
+export const HLS_TEMPLATES: Record<
+  HlsTemplateName,
+  { name: string; description: string; renditions: Omit<RenditionState, "id">[] }
+> = {
+  adaptive_streaming: {
+    name: "Adaptive Streaming",
+    description: "Balanced quality ladder for most streaming use cases",
+    renditions: [
+      { name: "360p", width: 640, height: 360, video_bitrate: "800k", audio_bitrate: "128k" },
+      { name: "480p", width: 842, height: 480, video_bitrate: "1500k", audio_bitrate: "128k" },
+      { name: "720p", width: 1280, height: 720, video_bitrate: "3000k", audio_bitrate: "128k" },
+      { name: "1080p", width: 1920, height: 1080, video_bitrate: "5000k", audio_bitrate: "192k" },
+    ],
+  },
+  low_bandwidth: {
+    name: "Low Bandwidth",
+    description: "Optimized for constrained networks and emerging markets",
+    renditions: [
+      { name: "240p", width: 426, height: 240, video_bitrate: "400k", audio_bitrate: "64k" },
+      { name: "360p", width: 640, height: 360, video_bitrate: "600k", audio_bitrate: "96k" },
+      { name: "480p", width: 842, height: 480, video_bitrate: "1000k", audio_bitrate: "128k" },
+    ],
+  },
+  "4k_ultra": {
+    name: "4K Ultra",
+    description: "High quality ladder up to 4K resolution",
+    renditions: [
+      { name: "720p", width: 1280, height: 720, video_bitrate: "3000k", audio_bitrate: "128k" },
+      { name: "1080p", width: 1920, height: 1080, video_bitrate: "6000k", audio_bitrate: "192k" },
+      { name: "1440p", width: 2560, height: 1440, video_bitrate: "12000k", audio_bitrate: "192k" },
+      { name: "2160p", width: 3840, height: 2160, video_bitrate: "20000k", audio_bitrate: "192k" },
+    ],
+  },
+  mobile_only: {
+    name: "Mobile Only",
+    description: "Optimized for mobile devices with smaller screens",
+    renditions: [
+      { name: "240p", width: 426, height: 240, video_bitrate: "400k", audio_bitrate: "64k" },
+      { name: "360p", width: 640, height: 360, video_bitrate: "800k", audio_bitrate: "96k" },
+      { name: "480p", width: 854, height: 480, video_bitrate: "1200k", audio_bitrate: "128k" },
+    ],
+  },
+  broadcast: {
+    name: "Broadcast",
+    description: "High bitrate tiers for professional streaming platforms",
+    renditions: [
+      { name: "720p", width: 1280, height: 720, video_bitrate: "4500k", audio_bitrate: "192k" },
+      { name: "1080p", width: 1920, height: 1080, video_bitrate: "8000k", audio_bitrate: "192k" },
+    ],
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Default state
 // ---------------------------------------------------------------------------
 
-const DEFAULT_RENDITIONS: RenditionState[] = [
-  {
-    id: "default-1080p",
-    name: "1080p",
-    width: 1920,
-    height: 1080,
-    video_bitrate: "5000k",
-    audio_bitrate: "128k",
-  },
-  {
-    id: "default-720p",
-    name: "720p",
-    width: 1280,
-    height: 720,
-    video_bitrate: "2800k",
-    audio_bitrate: "128k",
-  },
-  {
-    id: "default-480p",
-    name: "480p",
-    width: 854,
-    height: 480,
-    video_bitrate: "1400k",
-    audio_bitrate: "128k",
-  },
-  {
-    id: "default-360p",
-    name: "360p",
-    width: 640,
-    height: 360,
-    video_bitrate: "800k",
-    audio_bitrate: "128k",
-  },
-];
+const DEFAULT_RENDITIONS: RenditionState[] = HLS_TEMPLATES.adaptive_streaming.renditions.map(
+  (r, i) => ({ ...r, id: `default-${i}` }),
+);
 
 const defaultHlsConfig: HlsConfigState = {
   segment_duration: 10,
@@ -64,6 +90,7 @@ const initialState: PlaygroundFormState = {
   generate_subtitles: false,
   webhook_url: "",
   hls_config: defaultHlsConfig,
+  hls_template: "adaptive_streaming" as HlsTemplateName,
 };
 
 // ---------------------------------------------------------------------------
@@ -74,6 +101,7 @@ type FormAction =
   | { type: "SET_FIELD"; field: keyof Omit<PlaygroundFormState, "hls_config">; value: string | boolean | null }
   | { type: "SET_HLS_FIELD"; field: keyof Omit<HlsConfigState, "renditions">; value: number | string }
   | { type: "SET_SOURCE_MODE"; value: SourceMode }
+  | { type: "SET_HLS_TEMPLATE"; value: HlsTemplateName | null }
   | { type: "ADD_RENDITION"; payload: RenditionState }
   | { type: "EDIT_RENDITION"; id: string; payload: Partial<Omit<RenditionState, "id">> }
   | { type: "REMOVE_RENDITION"; id: string }
@@ -97,9 +125,29 @@ function formReducer(state: PlaygroundFormState, action: FormAction): Playground
         hls_config: { ...state.hls_config, [action.field]: action.value },
       };
 
+    case "SET_HLS_TEMPLATE": {
+      const templateId = action.value;
+      if (templateId === null) {
+        // Switching to custom mode — unlock editor, keep current renditions
+        return { ...state, hls_template: null };
+      }
+      // Apply template renditions
+      const template = HLS_TEMPLATES[templateId];
+      const renditions: RenditionState[] = template.renditions.map((r, i) => ({
+        ...r,
+        id: `tpl-${templateId}-${i}`,
+      }));
+      return {
+        ...state,
+        hls_template: templateId,
+        hls_config: { ...state.hls_config, renditions },
+      };
+    }
+
     case "ADD_RENDITION":
       return {
         ...state,
+        hls_template: null, // editing unlocks from template
         hls_config: {
           ...state.hls_config,
           renditions: [...state.hls_config.renditions, action.payload],
@@ -109,6 +157,7 @@ function formReducer(state: PlaygroundFormState, action: FormAction): Playground
     case "EDIT_RENDITION":
       return {
         ...state,
+        hls_template: null,
         hls_config: {
           ...state.hls_config,
           renditions: state.hls_config.renditions.map((r) =>
@@ -120,6 +169,7 @@ function formReducer(state: PlaygroundFormState, action: FormAction): Playground
     case "REMOVE_RENDITION":
       return {
         ...state,
+        hls_template: null,
         hls_config: {
           ...state.hls_config,
           renditions: state.hls_config.renditions.filter((r) => r.id !== action.id),
@@ -170,27 +220,50 @@ function buildPreviewPayload(state: PlaygroundFormState): RequestPreviewPayload 
   }
 
   if (state.output_format === "hls") {
-    const hls = state.hls_config;
-    const hlsOut: NonNullable<RequestPreviewPayload["hls_config"]> = {};
+    if (state.hls_template) {
+      // Template mode: send hls_template, no renditions in hls_config
+      payload.hls_template = state.hls_template;
+      const hls = state.hls_config;
+      const hlsOut: NonNullable<RequestPreviewPayload["hls_config"]> = {};
+      if (hls.segment_duration !== 10) {
+        hlsOut.segment_duration = hls.segment_duration;
+      }
+      if (hls.video_codec_preset !== "fast") {
+        hlsOut.video_codec_preset = hls.video_codec_preset;
+      }
+      if (hls.video_crf !== 23) {
+        hlsOut.video_crf = hls.video_crf;
+      }
+      if (hls.video_profile !== "high") {
+        hlsOut.video_profile = hls.video_profile;
+      }
+      if (Object.keys(hlsOut).length > 0) {
+        payload.hls_config = hlsOut;
+      }
+    } else {
+      // Custom mode: send full hls_config with renditions
+      const hls = state.hls_config;
+      const hlsOut: NonNullable<RequestPreviewPayload["hls_config"]> = {};
 
-    if (hls.segment_duration !== 10) {
-      hlsOut.segment_duration = hls.segment_duration;
-    }
-    if (hls.video_codec_preset !== "fast") {
-      hlsOut.video_codec_preset = hls.video_codec_preset;
-    }
-    if (hls.video_crf !== 23) {
-      hlsOut.video_crf = hls.video_crf;
-    }
-    if (hls.video_profile !== "high") {
-      hlsOut.video_profile = hls.video_profile;
-    }
-    if (hls.renditions.length > 0) {
-      hlsOut.renditions = hls.renditions.map(buildRenditionPayload);
-    }
+      if (hls.segment_duration !== 10) {
+        hlsOut.segment_duration = hls.segment_duration;
+      }
+      if (hls.video_codec_preset !== "fast") {
+        hlsOut.video_codec_preset = hls.video_codec_preset;
+      }
+      if (hls.video_crf !== 23) {
+        hlsOut.video_crf = hls.video_crf;
+      }
+      if (hls.video_profile !== "high") {
+        hlsOut.video_profile = hls.video_profile;
+      }
+      if (hls.renditions.length > 0) {
+        hlsOut.renditions = hls.renditions.map(buildRenditionPayload);
+      }
 
-    if (Object.keys(hlsOut).length > 0) {
-      payload.hls_config = hlsOut;
+      if (Object.keys(hlsOut).length > 0) {
+        payload.hls_config = hlsOut;
+      }
     }
   }
 
@@ -221,27 +294,48 @@ export function buildRealApiJobPayload(state: PlaygroundFormState, uploadId: str
   }
 
   if (state.output_format === "hls") {
-    const hls = state.hls_config;
-    const hlsOut: Record<string, unknown> = {};
+    if (state.hls_template) {
+      payload.hls_template = state.hls_template;
+      const hls = state.hls_config;
+      const hlsOut: Record<string, unknown> = {};
+      if (hls.segment_duration !== 10) {
+        hlsOut.segment_duration = hls.segment_duration;
+      }
+      if (hls.video_codec_preset !== "fast") {
+        hlsOut.video_codec_preset = hls.video_codec_preset;
+      }
+      if (hls.video_crf !== 23) {
+        hlsOut.video_crf = hls.video_crf;
+      }
+      if (hls.video_profile !== "high") {
+        hlsOut.video_profile = hls.video_profile;
+      }
+      if (Object.keys(hlsOut).length > 0) {
+        payload.hls_config = hlsOut;
+      }
+    } else {
+      const hls = state.hls_config;
+      const hlsOut: Record<string, unknown> = {};
 
-    if (hls.segment_duration !== 10) {
-      hlsOut.segment_duration = hls.segment_duration;
-    }
-    if (hls.video_codec_preset !== "fast") {
-      hlsOut.video_codec_preset = hls.video_codec_preset;
-    }
-    if (hls.video_crf !== 23) {
-      hlsOut.video_crf = hls.video_crf;
-    }
-    if (hls.video_profile !== "high") {
-      hlsOut.video_profile = hls.video_profile;
-    }
-    if (hls.renditions.length > 0) {
-      hlsOut.renditions = hls.renditions.map(buildRenditionPayload);
-    }
+      if (hls.segment_duration !== 10) {
+        hlsOut.segment_duration = hls.segment_duration;
+      }
+      if (hls.video_codec_preset !== "fast") {
+        hlsOut.video_codec_preset = hls.video_codec_preset;
+      }
+      if (hls.video_crf !== 23) {
+        hlsOut.video_crf = hls.video_crf;
+      }
+      if (hls.video_profile !== "high") {
+        hlsOut.video_profile = hls.video_profile;
+      }
+      if (hls.renditions.length > 0) {
+        hlsOut.renditions = hls.renditions.map(buildRenditionPayload);
+      }
 
-    if (Object.keys(hlsOut).length > 0) {
-      payload.hls_config = hlsOut;
+      if (Object.keys(hlsOut).length > 0) {
+        payload.hls_config = hlsOut;
+      }
     }
   }
 
@@ -275,6 +369,10 @@ export function usePlaygroundForm() {
     dispatch({ type: "SET_SOURCE_MODE", value: mode });
   }, []);
 
+  const setHlsTemplate = useCallback((template: HlsTemplateName | null) => {
+    dispatch({ type: "SET_HLS_TEMPLATE", value: template });
+  }, []);
+
   const addRendition = useCallback((rendition: RenditionState) => {
     dispatch({ type: "ADD_RENDITION", payload: rendition });
   }, []);
@@ -298,6 +396,7 @@ export function usePlaygroundForm() {
     setField,
     setHlsField,
     setSourceMode,
+    setHlsTemplate,
     addRendition,
     editRendition,
     removeRendition,

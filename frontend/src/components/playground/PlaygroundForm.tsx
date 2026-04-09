@@ -4,7 +4,9 @@ import type {
   HlsConfigState,
   CodecPreset,
   SourceMode,
+  HlsTemplateName,
 } from "../../types/index";
+import { HLS_TEMPLATES } from "../../hooks/usePlaygroundForm";
 import HlsRenditionEditor from "./HlsRenditionEditor";
 import FileUploader from "./FileUploader";
 import type { UploadPhase } from "./FileUploader";
@@ -20,6 +22,7 @@ interface PlaygroundFormProps {
     value: HlsConfigState[K],
   ) => void;
   setSourceMode: (mode: SourceMode) => void;
+  setHlsTemplate: (template: HlsTemplateName | null) => void;
   addRendition: (rendition: PlaygroundFormState["hls_config"]["renditions"][number]) => void;
   editRendition: (
     id: string,
@@ -43,6 +46,14 @@ const PRESETS = [
   { value: "instagram" as const, label: "Instagram" },
 ];
 
+const TEMPLATE_OPTIONS: { value: HlsTemplateName | ""; label: string; desc: string }[] = [
+  { value: "adaptive_streaming", label: "Adaptive Streaming", desc: "Balanced quality ladder" },
+  { value: "low_bandwidth", label: "Low Bandwidth", desc: "Constrained networks" },
+  { value: "4k_ultra", label: "4K Ultra", desc: "High quality up to 4K" },
+  { value: "mobile_only", label: "Mobile Only", desc: "Optimized for phones" },
+  { value: "broadcast", label: "Broadcast", desc: "Professional streaming" },
+];
+
 const CODEC_PRESETS: CodecPreset[] = [
   "ultrafast",
   "superfast",
@@ -62,6 +73,7 @@ function PlaygroundForm({
   setField,
   setHlsField,
   setSourceMode,
+  setHlsTemplate,
   addRendition,
   editRendition,
   removeRendition,
@@ -76,6 +88,7 @@ function PlaygroundForm({
 }: PlaygroundFormProps): React.ReactElement {
   const showHls = state.output_format === "hls";
   const hls = state.hls_config;
+  const isTemplateLocked = state.hls_template !== null;
 
   const sourceUrlError =
     state.source_mode === "url" &&
@@ -292,12 +305,61 @@ function PlaygroundForm({
             </select>
           </div>
 
+          {/* Output Format Template */}
+          <div>
+            <label
+              htmlFor="hls_template"
+              className="block text-sm font-medium mb-1 text-text-primary"
+            >
+              Output Template
+            </label>
+            <p className="text-xs text-text-secondary mb-2">
+              Predefined rendition configurations. Select a template for common use cases, or
+              choose &quot;Custom&quot; to define your own.
+            </p>
+            <div className="flex gap-2 items-center">
+              <select
+                id="hls_template"
+                value={state.hls_template ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setHlsTemplate(val === "" ? null : (val as HlsTemplateName));
+                }}
+                className="flex-1 p-2.5 border border-border rounded-lg bg-surface-raised text-sm focus:outline-none focus:ring-2 focus:ring-accent-glow focus:border-accent"
+              >
+                {!state.hls_template && (
+                  <option value="">Custom</option>
+                )}
+                {TEMPLATE_OPTIONS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label} — {t.desc}
+                  </option>
+                ))}
+              </select>
+              {state.hls_template && (
+                <button
+                  type="button"
+                  onClick={() => setHlsTemplate(null)}
+                  className="px-3 py-2.5 text-xs font-medium border border-accent text-accent rounded-lg hover:bg-accent-soft transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  Customize
+                </button>
+              )}
+            </div>
+            {state.hls_template && (
+              <p className="mt-1.5 text-xs text-text-secondary">
+                {HLS_TEMPLATES[state.hls_template].description}
+              </p>
+            )}
+          </div>
+
           {/* Renditions */}
           <HlsRenditionEditor
             renditions={hls.renditions}
             onAdd={addRendition}
             onEdit={editRendition}
             onRemove={removeRendition}
+            locked={isTemplateLocked}
           />
         </div>
       )}

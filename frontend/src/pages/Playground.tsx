@@ -19,6 +19,7 @@ function Playground(): React.ReactElement {
     setField,
     setHlsField,
     setSourceMode,
+    setHlsTemplate,
     addRendition,
     editRendition,
     removeRendition,
@@ -238,6 +239,7 @@ function Playground(): React.ReactElement {
             setField={setField}
             setHlsField={setHlsField}
             setSourceMode={setSourceMode}
+            setHlsTemplate={setHlsTemplate}
             addRendition={addRendition}
             editRendition={editRendition}
             removeRendition={removeRendition}

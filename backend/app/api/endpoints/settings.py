@@ -23,7 +23,9 @@ def _mask_secret(secret: str) -> str:
     return "••••••" + secret[-4:]
 
 
-@router.get("/webhook", response_model=WebhookSettingsResponse, summary="Get webhook settings")
+@router.get(
+    "/webhook", response_model=WebhookSettingsResponse, summary="Get webhook settings"
+)
 def get_webhook_settings(current_user: User = Depends(get_current_user)):
     return WebhookSettingsResponse(
         webhook_secret_set=current_user.webhook_secret is not None,

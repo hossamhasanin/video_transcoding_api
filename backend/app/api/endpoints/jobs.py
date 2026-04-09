@@ -37,6 +37,7 @@ from app.api.dependencies import (
 )
 from app.core.rate_limit import limiter
 from app.core.redis import get_progress, subscribe_to_job, publish_event, clear_progress
+from app.core.presets import get_hls_template_renditions
 from app.core.storage import (
     get_s3_client,
     generate_presigned_download_url,
@@ -89,6 +90,15 @@ def create_job(
 ):
     source_url = _resolve_source_url(job_in, api_key.user_id, db)
 
+    # Resolve HLS config: template → full config, or use explicit config
+    if job_in.hls_template:
+        template_renditions = get_hls_template_renditions(job_in.hls_template)
+        hls_config = {"renditions": template_renditions}
+    elif job_in.hls_config:
+        hls_config = job_in.hls_config.model_dump(mode="json")
+    else:
+        hls_config = None
+
     # Create DB Record
     new_job = Job(
         user_id=api_key.user_id,
@@ -98,9 +108,7 @@ def create_job(
         output_format=job_in.output_format,
         webhook_url=str(job_in.webhook_url) if job_in.webhook_url else None,
         generate_subtitles=job_in.generate_subtitles,
-        hls_config=(
-            job_in.hls_config.model_dump(mode="json") if job_in.hls_config else None
-        ),
+        hls_config=hls_config,
         status="pending",
     )
     db.add(new_job)
@@ -342,13 +350,9 @@ def cancel_job(
     from app.core.celery_app import celery_app as celery
 
     if job.celery_task_id:
-        celery.control.revoke(
-            job.celery_task_id, terminate=True, signal="SIGTERM"
-        )
+        celery.control.revoke(job.celery_task_id, terminate=True, signal="SIGTERM")
     if job.subtitle_task_id:
-        celery.control.revoke(
-            job.subtitle_task_id, terminate=True, signal="SIGTERM"
-        )
+        celery.control.revoke(job.subtitle_task_id, terminate=True, signal="SIGTERM")
 
     # Clean up Redis progress and publish cancellation event
     clear_progress(str(tracking_id))

@@ -33,6 +33,7 @@ from app.schemas.playground import (
 from app.api.dependencies import get_current_user
 from app.core.security import decode_token
 from app.core.rate_limit import limiter
+from app.core.presets import get_hls_template_renditions, HLS_TEMPLATES
 from app.worker.tasks import transcode_video_task
 from app.core.storage import (
     upload_file_to_s3,
@@ -44,6 +45,29 @@ from app.core.storage import (
 from sqlalchemy import or_
 
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# HLS Templates — public config endpoint
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/hls-templates",
+    summary="List available HLS output format templates",
+    description="Returns predefined HLS rendition templates that can be used "
+    "via the `hls_template` field when creating jobs.",
+)
+def list_hls_templates():
+    return [
+        {
+            "id": tid,
+            "name": t["name"],
+            "description": t["description"],
+            "renditions": t["renditions"],
+        }
+        for tid, t in HLS_TEMPLATES.items()
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +186,15 @@ def submit_test_job(
             detail=f"Concurrent job limit exceeded. Maximum allowable is {settings.MAX_CONCURRENT_JOBS}.",
         )
 
+    # Resolve HLS config: template → full config, or use explicit config
+    if job_in.hls_template:
+        template_renditions = get_hls_template_renditions(job_in.hls_template)
+        hls_config = {"renditions": template_renditions}
+    elif job_in.hls_config:
+        hls_config = job_in.hls_config.model_dump(mode="json")
+    else:
+        hls_config = None
+
     # Create DB record (same pattern as jobs.py)
     new_job = Job(
         user_id=current_user.id,
@@ -171,9 +204,7 @@ def submit_test_job(
         output_format=job_in.output_format,
         webhook_url=str(job_in.webhook_url) if job_in.webhook_url else None,
         generate_subtitles=job_in.generate_subtitles,
-        hls_config=(
-            job_in.hls_config.model_dump(mode="json") if job_in.hls_config else None
-        ),
+        hls_config=hls_config,
         status="pending",
     )
     db.add(new_job)

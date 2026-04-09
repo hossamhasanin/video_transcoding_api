@@ -130,6 +130,7 @@ export interface PlaygroundFormState {
   generate_subtitles: boolean
   webhook_url: string
   hls_config: HlsConfigState
+  hls_template: HlsTemplateName | null
 }
 
 export interface RenditionPayload {
@@ -140,12 +141,27 @@ export interface RenditionPayload {
   audio_bitrate?: string
 }
 
+export type HlsTemplateName =
+  | "adaptive_streaming"
+  | "low_bandwidth"
+  | "4k_ultra"
+  | "mobile_only"
+  | "broadcast"
+
+export interface HlsTemplate {
+  id: HlsTemplateName
+  name: string
+  description: string
+  renditions: RenditionPayload[]
+}
+
 export interface RequestPreviewPayload {
   source_url: string
   output_format?: "mp4" | "hls"
   preset?: "tiktok" | "youtube" | "instagram"
   generate_subtitles?: boolean
   webhook_url?: string
+  hls_template?: HlsTemplateName
   hls_config?: {
     segment_duration?: number
     video_codec_preset?: string

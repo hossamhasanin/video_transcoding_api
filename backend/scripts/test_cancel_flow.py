@@ -49,7 +49,9 @@ import requests
 
 BASE_URL = "http://localhost:8000"
 API_PREFIX = "/api/v1"
-TEST_VIDEO_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+TEST_VIDEO_URL = (
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+)
 
 PASS = 0
 FAIL = 0
@@ -62,6 +64,7 @@ def _url(path: str) -> str:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_headers(api_key: str) -> dict:
     return {"x-api-key": api_key, "Content-Type": "application/json"}
@@ -149,6 +152,7 @@ def create_job_for_other_user(api_key2: str) -> dict:
 # Test runner helpers
 # ---------------------------------------------------------------------------
 
+
 def report(name: str, passed: bool, detail: str = ""):
     global PASS, FAIL
     icon = "PASS" if passed else "FAIL"
@@ -163,6 +167,7 @@ def report(name: str, passed: bool, detail: str = ""):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_health():
     """Sanity check — API is reachable."""
@@ -179,7 +184,11 @@ def test_cancel_pending_job(api_key: str):
     """Test 1: Cancel a freshly-created (pending) job."""
     job = create_job(api_key)
     job_id = job["id"]
-    report("Created pending job", job["status"] == "pending", f"id={job_id[:8]}... status={job['status']}")
+    report(
+        "Created pending job",
+        job["status"] == "pending",
+        f"id={job_id[:8]}... status={job['status']}",
+    )
 
     resp = requests.post(
         _url(f"/jobs/{job_id}/cancel"),
@@ -211,7 +220,9 @@ def test_cancel_already_cancelled(api_key: str):
     job_id = job["id"]
 
     # First cancel succeeds
-    requests.post(_url(f"/jobs/{job_id}/cancel"), headers=make_headers(api_key), timeout=10)
+    requests.post(
+        _url(f"/jobs/{job_id}/cancel"), headers=make_headers(api_key), timeout=10
+    )
 
     # Second cancel should fail
     resp = requests.post(
@@ -221,7 +232,11 @@ def test_cancel_already_cancelled(api_key: str):
     )
     ok = resp.status_code == 409
     body = resp.json()
-    report("Cancel already-cancelled job → 409", ok, f"status={resp.status_code} detail={body.get('detail', '')}")
+    report(
+        "Cancel already-cancelled job → 409",
+        ok,
+        f"status={resp.status_code} detail={body.get('detail', '')}",
+    )
 
 
 def test_cancel_completed_job(api_key: str):
@@ -252,7 +267,11 @@ def test_cancel_completed_job(api_key: str):
     )
     ok = resp.status_code == 409
     body = resp.json()
-    report("Cancel completed job → 409", ok, f"status={resp.status_code} detail={body.get('detail', '')}")
+    report(
+        "Cancel completed job → 409",
+        ok,
+        f"status={resp.status_code} detail={body.get('detail', '')}",
+    )
 
 
 def test_cancel_nonexistent_job(api_key: str):
@@ -265,7 +284,11 @@ def test_cancel_nonexistent_job(api_key: str):
     )
     ok = resp.status_code == 404
     body = resp.json()
-    report("Cancel non-existent job → 404", ok, f"status={resp.status_code} detail={body.get('detail', '')}")
+    report(
+        "Cancel non-existent job → 404",
+        ok,
+        f"status={resp.status_code} detail={body.get('detail', '')}",
+    )
 
 
 def test_cancel_other_users_job(api_key: str, api_key2: str):
@@ -282,7 +305,11 @@ def test_cancel_other_users_job(api_key: str, api_key2: str):
     )
     ok = resp.status_code == 404
     body = resp.json()
-    report("Cancel other user's job → 404", ok, f"status={resp.status_code} detail={body.get('detail', '')}")
+    report(
+        "Cancel other user's job → 404",
+        ok,
+        f"status={resp.status_code} detail={body.get('detail', '')}",
+    )
 
 
 def test_list_cancelled_jobs(api_key: str):
@@ -291,7 +318,9 @@ def test_list_cancelled_jobs(api_key: str):
     job_id = job["id"]
 
     # Cancel it
-    requests.post(_url(f"/jobs/{job_id}/cancel"), headers=make_headers(api_key), timeout=10)
+    requests.post(
+        _url(f"/jobs/{job_id}/cancel"), headers=make_headers(api_key), timeout=10
+    )
 
     # List cancelled jobs
     resp = requests.get(
@@ -303,7 +332,9 @@ def test_list_cancelled_jobs(api_key: str):
     body = resp.json()
     ids = [item["id"] for item in body.get("items", [])]
     ok = resp.status_code == 200 and str(job_id) in ids
-    report("List jobs ?status=cancelled includes job", ok, f"found={str(job_id) in ids}")
+    report(
+        "List jobs ?status=cancelled includes job", ok, f"found={str(job_id) in ids}"
+    )
 
 
 def test_sse_cancelled_event(api_key: str):
@@ -337,7 +368,9 @@ def test_sse_cancelled_event(api_key: str):
     time.sleep(0.5)  # Let SSE connect
 
     # Cancel the job
-    requests.post(_url(f"/jobs/{job_id}/cancel"), headers=make_headers(api_key), timeout=10)
+    requests.post(
+        _url(f"/jobs/{job_id}/cancel"), headers=make_headers(api_key), timeout=10
+    )
 
     t.join(timeout=10)
     ok = "cancelled" in received_events
@@ -368,18 +401,25 @@ def test_cancel_failed_job(api_key: str):
     )
     ok = resp.status_code == 409
     body = resp.json()
-    report("Cancel failed job → 409", ok, f"status={resp.status_code} detail={body.get('detail', '')}")
+    report(
+        "Cancel failed job → 409",
+        ok,
+        f"status={resp.status_code} detail={body.get('detail', '')}",
+    )
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
     global BASE_URL
 
     parser = argparse.ArgumentParser(description="Test job cancellation flow")
-    parser.add_argument("--base-url", default="http://localhost:8000", help="API base URL")
+    parser.add_argument(
+        "--base-url", default="http://localhost:8000", help="API base URL"
+    )
     args = parser.parse_args()
     BASE_URL = args.base_url.rstrip("/")
 

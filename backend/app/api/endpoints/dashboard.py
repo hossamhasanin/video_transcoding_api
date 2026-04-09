@@ -26,7 +26,8 @@ router = APIRouter()
 def list_dashboard_jobs(
     request: Request,
     status: Optional[str] = Query(
-        None, description="Filter by status: pending, processing, transcoding, uploading, completed, failed, cancelled"
+        None,
+        description="Filter by status: pending, processing, transcoding, uploading, completed, failed, cancelled",
     ),
     output_format: Optional[str] = Query(
         None, description="Filter by output format: mp4, hls"

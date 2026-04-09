@@ -54,6 +54,11 @@ class HLSConfig(BaseModel):
         return self
 
 
+HlsTemplateName = Literal[
+    "adaptive_streaming", "low_bandwidth", "4k_ultra", "mobile_only", "broadcast"
+]
+
+
 class JobCreate(BaseModel):
     source_url: Optional[str] = None
     upload_id: Optional[UUID4] = None
@@ -62,6 +67,7 @@ class JobCreate(BaseModel):
     webhook_url: Optional[HttpUrl] = None
     generate_subtitles: Optional[bool] = False
     hls_config: Optional[HLSConfig] = None
+    hls_template: Optional[HlsTemplateName] = None
 
     @model_validator(mode="after")
     def validate_source(self):
@@ -69,6 +75,12 @@ class JobCreate(BaseModel):
             raise ValueError("Either source_url or upload_id must be provided")
         if self.source_url and self.upload_id:
             raise ValueError("Provide either source_url or upload_id, not both")
+        return self
+
+    @model_validator(mode="after")
+    def validate_hls_config_or_template(self):
+        if self.hls_template and self.hls_config:
+            raise ValueError("Provide either hls_template or hls_config, not both")
         return self
 
 

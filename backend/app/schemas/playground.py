@@ -1,10 +1,8 @@
-from pydantic import BaseModel, Field, HttpUrl, UUID4
+from pydantic import BaseModel, Field, HttpUrl, UUID4, model_validator
 from datetime import datetime
 from typing import Optional, Literal
 
-from app.schemas.job import HLSConfig
-
-from app.schemas.job import HLSConfig
+from app.schemas.job import HLSConfig, HlsTemplateName
 
 
 class TestJobRequest(BaseModel):
@@ -14,6 +12,13 @@ class TestJobRequest(BaseModel):
     webhook_url: Optional[HttpUrl] = None
     generate_subtitles: Optional[bool] = False
     hls_config: Optional[HLSConfig] = None
+    hls_template: Optional[HlsTemplateName] = None
+
+    @model_validator(mode="after")
+    def validate_hls_config_or_template(self):
+        if self.hls_template and self.hls_config:
+            raise ValueError("Provide either hls_template or hls_config, not both")
+        return self
 
 
 class TestJobResponse(BaseModel):
