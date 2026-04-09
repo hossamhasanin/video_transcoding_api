@@ -33,6 +33,30 @@ export interface UsageStats {
   processed_minutes: number
 }
 
+export interface Job {
+  id: string
+  status: string
+  source_url: string
+  webhook_url: string | null
+  preset: string | null
+  output_format: string
+  generate_subtitles: boolean
+  subtitle_url: string | null
+  hls_config: Record<string, unknown> | null
+  source_size_bytes: number | null
+  output_size_bytes: number | null
+  processing_duration_seconds: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PaginatedJobResponse {
+  items: Job[]
+  total: number
+  limit: number
+  offset: number
+}
+
 // ---------------------------------------------------------------------------
 // Auth store interface (also exported from authStore.ts; imported from types
 // when needed outside the store module to avoid circular imports)
