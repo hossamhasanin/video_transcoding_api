@@ -89,8 +89,6 @@ function ExpandedRow({ job }: { job: Job }): ReactNode {
   const borderColor = isFailed ? 'border-l-[#dc3545]' : 'border-l-brand'
   const bgColor = isFailed ? 'bg-[#fff5f5]' : 'bg-[#f0f4f8]'
 
-  const errorMessage = 'error_message' in job ? (job as Job & { error_message?: string | null }).error_message : null
-
   return (
     <tr>
       <td colSpan={7} className="p-0">
@@ -125,8 +123,8 @@ function ExpandedRow({ job }: { job: Job }): ReactNode {
             </div>
             <div>
               <span className="block text-[#6c757d] font-medium text-xs mb-0.5">Error</span>
-              {isFailed && errorMessage ? (
-                <span className="text-[#dc3545] font-mono text-xs break-all">{errorMessage}</span>
+              {isFailed && job.error_message ? (
+                <span className="text-[#dc3545] font-mono text-xs break-all">{job.error_message}</span>
               ) : (
                 <span className="text-[#28a745]">—</span>
               )}

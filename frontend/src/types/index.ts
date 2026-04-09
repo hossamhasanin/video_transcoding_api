@@ -46,6 +46,7 @@ export interface Job {
   source_size_bytes: number | null
   output_size_bytes: number | null
   processing_duration_seconds: number | null
+  error_message: string | null
   created_at: string
   updated_at: string
 }

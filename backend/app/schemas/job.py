@@ -85,6 +85,7 @@ class JobResponse(BaseModel):
     source_size_bytes: Optional[int] = None
     output_size_bytes: Optional[int] = None
     processing_duration_seconds: Optional[float] = None
+    error_message: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -94,7 +95,6 @@ class JobResponse(BaseModel):
 
 class JobStatusResponse(JobResponse):
     output_url: Optional[str] = None
-    error_message: Optional[str] = None
     output_url_expires_at: Optional[datetime] = None
     output_zip_url: Optional[str] = None
     output_zip_url_expires_at: Optional[datetime] = None
