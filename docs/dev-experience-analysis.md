@@ -63,6 +63,7 @@ GET /api/v1/jobs/{tracking_id}   (X-API-Key header)
 
 ### HIGH IMPACT — These would meaningfully change how devs experience the platform
 
+done
 #### 1. No Direct File Upload via API
 **Current**: Source must be a public URL. Devs must host their video somewhere first.
 **Problem**: Most developers don't have a public URL for every video. The playground has upload (`/playground/upload`) but the real API doesn't.
@@ -73,6 +74,7 @@ GET /api/v1/jobs/{tracking_id}   (X-API-Key header)
 **Problem**: Devs have no way to list their jobs, filter by status, or see history.
 **Fix**: `GET /api/v1/jobs/?status=completed&limit=50&offset=0` with pagination and filtering.
 
+done
 #### 3. No Progress Details
 **Current**: Status is binary — `pending`, `processing`, `completed`, `failed`.
 **Problem**: For large videos, `processing` could be 30+ minutes with zero feedback.
@@ -96,6 +98,7 @@ GET /api/v1/jobs/{tracking_id}   (X-API-Key header)
 
 ### MEDIUM IMPACT — Nice-to-haves that make the platform feel polished
 
+done
 #### 6. No Real-Time Updates (WebSocket or SSE)
 **Current**: Polling only.
 **Fix**: `GET /api/v1/jobs/{id}/events` — SSE stream that pushes status changes. Much friendlier than asking devs to implement polling loops.

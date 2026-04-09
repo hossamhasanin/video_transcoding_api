@@ -207,7 +207,9 @@ def get_test_job_status(
     base_url = str(request.base_url).rstrip("/")
     output_url, output_url_expires_at = _build_output_url_for_playground(job, base_url)
     subtitle_url = _build_subtitle_url_for_playground(job)
-    output_zip_url, output_zip_url_expires_at = _build_output_zip_url_for_playground(job)
+    output_zip_url, output_zip_url_expires_at = _build_output_zip_url_for_playground(
+        job
+    )
 
     return TestJobStatusResponse(
         id=job.id,

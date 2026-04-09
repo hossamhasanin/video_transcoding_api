@@ -101,7 +101,9 @@ def _run_ffmpeg_with_progress(
 
     if process.returncode != 0:
         stderr_output = "".join(stderr_lines[-50:])
-        raise Exception(f"FFmpeg failed (exit {process.returncode}): {stderr_output[-500:]}")
+        raise Exception(
+            f"FFmpeg failed (exit {process.returncode}): {stderr_output[-500:]}"
+        )
 
 
 def _bitrate_to_bps(bitrate_str: str) -> int:
@@ -199,7 +201,9 @@ def process_video_transcode(
             source_res = _probe_resolution(source_file_path)
             total_duration = _probe_duration(source_file_path)
             num_renditions = len(renditions)
-            range_per_rendition = 100.0 / num_renditions if num_renditions > 0 else 100.0
+            range_per_rendition = (
+                100.0 / num_renditions if num_renditions > 0 else 100.0
+            )
 
             for idx, rendition in enumerate(renditions):
                 name = rendition["name"]

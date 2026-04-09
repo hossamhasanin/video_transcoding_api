@@ -9,12 +9,8 @@ class PresignUploadRequest(BaseModel):
         max_length=255,
         description="Original filename with extension",
     )
-    file_size_bytes: int = Field(
-        ..., gt=0, description="Exact file size in bytes"
-    )
-    content_type: str = Field(
-        "video/mp4", description="MIME type of the file"
-    )
+    file_size_bytes: int = Field(..., gt=0, description="Exact file size in bytes")
+    content_type: str = Field("video/mp4", description="MIME type of the file")
 
 
 class PresignUploadResponse(BaseModel):

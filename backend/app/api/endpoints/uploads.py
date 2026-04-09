@@ -123,8 +123,7 @@ def presign_upload(
     # Generate upload record
     upload_id = uuid.uuid4()
     s3_key = (
-        f"{settings.UPLOAD_API_SOURCE_PREFIX}"
-        f"/{api_key.user_id}/{upload_id}{ext}"
+        f"{settings.UPLOAD_API_SOURCE_PREFIX}" f"/{api_key.user_id}/{upload_id}{ext}"
     )
     source_url = _build_source_url(s3_key)
 

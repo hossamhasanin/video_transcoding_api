@@ -18,7 +18,12 @@ from app.core.config import settings
 from app.models.job import Job
 from app.models.api_key import ApiKey
 from app.models.upload import PendingUpload
-from app.schemas.job import JobCreate, JobResponse, JobStatusResponse, PaginatedJobResponse
+from app.schemas.job import (
+    JobCreate,
+    JobResponse,
+    JobStatusResponse,
+    PaginatedJobResponse,
+)
 from app.api.dependencies import (
     get_current_api_key,
     check_concurrent_jobs_limit,
@@ -313,7 +318,10 @@ async def stream_job_events(
             payload = {"status": job.status}
             if job.error_message:
                 payload["error_message"] = job.error_message
-            yield {"event": "done" if job.status == "completed" else "error", "data": json.dumps(payload)}
+            yield {
+                "event": "done" if job.status == "completed" else "error",
+                "data": json.dumps(payload),
+            }
             return
 
         # Send current progress from Redis if available
@@ -335,7 +343,8 @@ async def stream_job_events(
 
                 # Poll pub/sub with a timeout
                 message = await loop.run_in_executor(
-                    None, lambda: pubsub.get_message(timeout=settings.SSE_HEARTBEAT_INTERVAL)
+                    None,
+                    lambda: pubsub.get_message(timeout=settings.SSE_HEARTBEAT_INTERVAL),
                 )
 
                 if message and message["type"] == "message":

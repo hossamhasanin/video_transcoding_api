@@ -237,7 +237,9 @@ def transcode_video_task(self, job_id: str):
                 if settings.R2_ACCOUNT_ID:
                     zip_public_url = f"https://{settings.R2_BUCKET_NAME}.{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{zip_object_key}"
                 else:
-                    zip_public_url = f"https://{bucket_name}.s3.amazonaws.com/{zip_object_key}"
+                    zip_public_url = (
+                        f"https://{bucket_name}.s3.amazonaws.com/{zip_object_key}"
+                    )
 
         # Calculate processing duration
         processing_duration = time.time() - start_time
@@ -254,14 +256,20 @@ def transcode_video_task(self, job_id: str):
                 job_complete.processing_duration_seconds = round(processing_duration, 2)
                 if not (generate_subtitles and audio_extracted):
                     job_complete.status = "completed"
-                    publish_event(job_id, "done", {
-                        "status": "completed",
-                        "output_url": public_url,
-                        "output_zip_url": zip_public_url,
-                        "source_size_bytes": source_size,
-                        "output_size_bytes": output_size,
-                        "processing_duration_seconds": round(processing_duration, 2),
-                    })
+                    publish_event(
+                        job_id,
+                        "done",
+                        {
+                            "status": "completed",
+                            "output_url": public_url,
+                            "output_zip_url": zip_public_url,
+                            "source_size_bytes": source_size,
+                            "output_size_bytes": output_size,
+                            "processing_duration_seconds": round(
+                                processing_duration, 2
+                            ),
+                        },
+                    )
                 db_completion.commit()
         finally:
             db_completion.close()
@@ -307,10 +315,14 @@ def transcode_video_task(self, job_id: str):
                     if source_size > 0:
                         job_fail.source_size_bytes = source_size
                     db_fail.commit()
-                    publish_event(job_id, "error", {
-                        "status": "failed",
-                        "error_message": error_message,
-                    })
+                    publish_event(
+                        job_id,
+                        "error",
+                        {
+                            "status": "failed",
+                            "error_message": error_message,
+                        },
+                    )
             finally:
                 db_fail.close()
 
@@ -376,10 +388,14 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
                 job_complete.status = "completed"
                 job_complete.subtitle_url = sub_url
                 db_completion.commit()
-                publish_event(job_id, "done", {
-                    "status": "completed",
-                    "subtitle_url": sub_url,
-                })
+                publish_event(
+                    job_id,
+                    "done",
+                    {
+                        "status": "completed",
+                        "subtitle_url": sub_url,
+                    },
+                )
         finally:
             db_completion.close()
 
@@ -406,10 +422,14 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
                     old_msg = job_fail.error_message or ""
                     job_fail.error_message = f"{old_msg} | {error_message}"
                     db_fail.commit()
-                    publish_event(job_id, "error", {
-                        "status": "failed",
-                        "error_message": f"{old_msg} | {error_message}",
-                    })
+                    publish_event(
+                        job_id,
+                        "error",
+                        {
+                            "status": "failed",
+                            "error_message": f"{old_msg} | {error_message}",
+                        },
+                    )
             finally:
                 db_fail.close()
 
@@ -426,9 +446,7 @@ def cleanup_abandoned_uploads():
     from datetime import datetime, timedelta
     from app.core.storage import delete_object
 
-    cutoff = datetime.utcnow() - timedelta(
-        hours=settings.UPLOAD_AUTO_CLEANUP_HOURS
-    )
+    cutoff = datetime.utcnow() - timedelta(hours=settings.UPLOAD_AUTO_CLEANUP_HOURS)
     db = SessionLocal()
     try:
         abandoned = (

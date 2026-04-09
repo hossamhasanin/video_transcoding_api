@@ -108,7 +108,9 @@ def send_webhook_task(self, job_id: str):
         # Build accessible URLs instead of raw R2 URLs
         output_url, output_url_expires_at = _build_output_url_for_webhook(job)
         subtitle_url = _build_subtitle_url_for_webhook(job)
-        output_zip_url, output_zip_url_expires_at = _build_output_zip_url_for_webhook(job)
+        output_zip_url, output_zip_url_expires_at = _build_output_zip_url_for_webhook(
+            job
+        )
 
         # Serialize the job status to a dictionary
         job_data = JobStatusResponse.model_validate(job)
