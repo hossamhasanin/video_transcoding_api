@@ -2,6 +2,11 @@ import os
 import re
 from datetime import datetime, timezone, timedelta
 
+import asyncio
+import json
+
+from sse_starlette.sse import EventSourceResponse
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import func
@@ -20,6 +25,7 @@ from app.api.dependencies import (
     verify_api_key_str,
 )
 from app.core.rate_limit import limiter
+from app.core.redis import get_progress, subscribe_to_job, publish_event
 from app.core.storage import (
     get_s3_client,
     generate_presigned_download_url,
@@ -237,6 +243,14 @@ def get_job_status(
     subtitle_url = _build_subtitle_url(job)
     output_zip_url, output_zip_url_expires_at = _build_output_zip_url(job)
 
+    # Enrich with real-time progress from Redis if available
+    progress_data = get_progress(str(tracking_id))
+    progress = None
+    eta_seconds = None
+    if progress_data and job.status == "processing":
+        progress = progress_data.get("progress")
+        eta_seconds = progress_data.get("eta_seconds")
+
     return JobStatusResponse(
         id=job.id,
         status=job.status,
@@ -255,8 +269,92 @@ def get_job_status(
         output_url_expires_at=output_url_expires_at,
         output_zip_url=output_zip_url,
         output_zip_url_expires_at=output_zip_url_expires_at,
+        progress=progress,
+        eta_seconds=eta_seconds,
         created_at=job.created_at,
         updated_at=job.updated_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# SSE — real-time job event stream
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{tracking_id}/events",
+    summary="Stream job events via SSE",
+    description="Real-time Server-Sent Events stream for job progress, status changes, "
+    "and completion. Authenticate via x-api-key header or ?api_key= query parameter. "
+    "Event types: progress, status_change, done, error, heartbeat.",
+)
+async def stream_job_events(
+    request: Request,
+    tracking_id: UUID,
+    api_key_query: str | None = Query(None, alias="api_key"),
+    db: Session = Depends(get_db),
+):
+    # Auth — reuse existing query-param-aware validation
+    api_key = _resolve_api_key_for_stream(request, api_key_query, db)
+
+    job = (
+        db.query(Job)
+        .filter(Job.id == tracking_id, Job.user_id == api_key.user_id)
+        .first()
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job_id = str(tracking_id)
+
+    async def _event_generator():
+        # If job already in a terminal state, emit and close immediately
+        if job.status in ("completed", "failed"):
+            payload = {"status": job.status}
+            if job.error_message:
+                payload["error_message"] = job.error_message
+            yield {"event": "done" if job.status == "completed" else "error", "data": json.dumps(payload)}
+            return
+
+        # Send current progress from Redis if available
+        progress_data = get_progress(job_id)
+        if progress_data:
+            yield {
+                "event": "progress",
+                "data": json.dumps(progress_data),
+            }
+
+        # Subscribe to Redis pub/sub for this job
+        pubsub = subscribe_to_job(job_id)
+        loop = asyncio.get_event_loop()
+
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+
+                # Poll pub/sub with a timeout
+                message = await loop.run_in_executor(
+                    None, lambda: pubsub.get_message(timeout=settings.SSE_HEARTBEAT_INTERVAL)
+                )
+
+                if message and message["type"] == "message":
+                    data = json.loads(message["data"])
+                    event_type = data.pop("event_type", "progress")
+                    yield {
+                        "event": event_type,
+                        "data": json.dumps(data),
+                    }
+                    # Terminal events close the stream
+                    if event_type in ("done", "error"):
+                        break
+        finally:
+            pubsub.unsubscribe()
+            pubsub.close()
+
+    return EventSourceResponse(
+        _event_generator(),
+        ping=settings.SSE_HEARTBEAT_INTERVAL,
     )
 
 

@@ -98,6 +98,8 @@ class JobStatusResponse(JobResponse):
     output_url_expires_at: Optional[datetime] = None
     output_zip_url: Optional[str] = None
     output_zip_url_expires_at: Optional[datetime] = None
+    progress: Optional[int] = None  # 0-100, None when not available
+    eta_seconds: Optional[float] = None  # estimated seconds remaining
 
 
 class PaginatedJobResponse(BaseModel):

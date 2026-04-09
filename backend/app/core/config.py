@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     # API base URL (used by workers to build accessible output URLs for webhooks)
     API_BASE_URL: str = "http://localhost:8000"
 
+    # SSE / Progress tracking
+    SSE_HEARTBEAT_INTERVAL: int = 15  # seconds between heartbeat events
+    PROGRESS_KEY_TTL: int = 3600  # Redis progress key TTL in seconds
+
     # Webhooks
     WEBHOOK_SECRET_KEY: str = "your-secret-key"
 

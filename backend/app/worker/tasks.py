@@ -16,6 +16,7 @@ from app.models.upload import PendingUpload
 from app.worker.transcoder import process_video_transcode
 from app.core.storage import get_s3_client, upload_directory_to_s3, extract_r2_key
 from app.core.config import settings
+from app.core.redis import set_progress, publish_event
 
 
 def _get_dir_size(path: str) -> int:
@@ -61,6 +62,7 @@ def transcode_video_task(self, job_id: str):
         webhook_url = job.webhook_url
         hls_config = job.hls_config
         db.commit()
+        publish_event(job_id, "status_change", {"status": "processing"})
     finally:
         db.close()
 
@@ -146,12 +148,18 @@ def transcode_video_task(self, job_id: str):
             print(
                 f"Starting transcode for job {job_id} with format {output_format} and preset {preset}"
             )
+            publish_event(job_id, "status_change", {"status": "transcoding"})
+
+            def _progress_callback(progress: int, eta_seconds: float | None):
+                set_progress(job_id, progress, eta_seconds, "transcoding")
+
             process_video_transcode(
                 source_file_path,
                 output_path,
                 output_format=output_format,
                 preset_name=preset,
                 hls_config=hls_config,
+                progress_callback=_progress_callback,
             )
 
             # Track output file size
@@ -164,6 +172,7 @@ def transcode_video_task(self, job_id: str):
             )
 
             print(f"Uploading transcoded video to storage")
+            publish_event(job_id, "status_change", {"status": "uploading"})
             bucket_name = settings.R2_BUCKET_NAME
             base_s3_prefix = f"transcoded/{job_id}"
 
@@ -245,6 +254,14 @@ def transcode_video_task(self, job_id: str):
                 job_complete.processing_duration_seconds = round(processing_duration, 2)
                 if not (generate_subtitles and audio_extracted):
                     job_complete.status = "completed"
+                    publish_event(job_id, "done", {
+                        "status": "completed",
+                        "output_url": public_url,
+                        "output_zip_url": zip_public_url,
+                        "source_size_bytes": source_size,
+                        "output_size_bytes": output_size,
+                        "processing_duration_seconds": round(processing_duration, 2),
+                    })
                 db_completion.commit()
         finally:
             db_completion.close()
@@ -290,6 +307,10 @@ def transcode_video_task(self, job_id: str):
                     if source_size > 0:
                         job_fail.source_size_bytes = source_size
                     db_fail.commit()
+                    publish_event(job_id, "error", {
+                        "status": "failed",
+                        "error_message": error_message,
+                    })
             finally:
                 db_fail.close()
 
@@ -324,6 +345,7 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
             s3.download_file(bucket_name, audio_s3_key, audio_path)
 
             print(f"Generating subtitles for job {job_id}")
+            publish_event(job_id, "status_change", {"status": "generating_subtitles"})
             from app.worker.subtitles import generate_subtitles_from_audio
 
             generate_subtitles_from_audio(audio_path, subtitle_path)
@@ -354,6 +376,10 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
                 job_complete.status = "completed"
                 job_complete.subtitle_url = sub_url
                 db_completion.commit()
+                publish_event(job_id, "done", {
+                    "status": "completed",
+                    "subtitle_url": sub_url,
+                })
         finally:
             db_completion.close()
 
@@ -380,6 +406,10 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
                     old_msg = job_fail.error_message or ""
                     job_fail.error_message = f"{old_msg} | {error_message}"
                     db_fail.commit()
+                    publish_event(job_id, "error", {
+                        "status": "failed",
+                        "error_message": f"{old_msg} | {error_message}",
+                    })
             finally:
                 db_fail.close()
 

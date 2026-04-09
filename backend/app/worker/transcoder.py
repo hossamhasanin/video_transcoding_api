@@ -1,6 +1,107 @@
 import ffmpeg
 import os
+import re
+import subprocess
+import time
+from typing import Callable
+
 from app.core.presets import SMART_PRESETS, DEFAULT_HLS_RENDITIONS
+
+
+def _probe_duration(source_file_path: str) -> float | None:
+    """Probe the duration of the source video in seconds. Returns None on failure."""
+    try:
+        probe = ffmpeg.probe(source_file_path)
+        # Try format duration first, then stream duration
+        duration = probe.get("format", {}).get("duration")
+        if duration:
+            return float(duration)
+        for stream in probe.get("streams", []):
+            dur = stream.get("duration")
+            if dur:
+                return float(dur)
+    except (ffmpeg.Error, ValueError, KeyError):
+        pass
+    return None
+
+
+# Regex to parse FFmpeg stderr progress lines
+_TIME_RE = re.compile(r"time=(\d+:\d+:\d+\.\d+)")
+_TIME_SHORT_RE = re.compile(r"time=(\d+\.\d+)")
+_SPEED_RE = re.compile(r"speed=\s*([\d.]+)x")
+
+
+def _parse_time_to_seconds(time_str: str) -> float:
+    """Convert HH:MM:SS.ms or seconds-only string to float seconds."""
+    if ":" in time_str:
+        parts = time_str.split(":")
+        return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
+    return float(time_str)
+
+
+def _run_ffmpeg_with_progress(
+    ffmpeg_stream,
+    progress_callback: Callable[[int, float | None], None] | None,
+    total_duration: float | None,
+    progress_offset: float = 0.0,
+    progress_range: float = 100.0,
+) -> None:
+    """Execute an FFmpeg stream via subprocess, parsing stderr for progress.
+
+    Args:
+        ffmpeg_stream: ffmpeg-python stream object
+        progress_callback: called with (progress_percent, eta_seconds)
+        total_duration: source video duration in seconds
+        progress_offset: base percentage for this run (for HLS multi-rendition)
+        progress_range: percentage range this run covers (for HLS multi-rendition)
+    """
+    args = ffmpeg_stream.compile()
+    process = subprocess.Popen(
+        args,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
+
+    last_report_time = 0.0
+    stderr_lines = []
+
+    for line in process.stderr:
+        stderr_lines.append(line)
+
+        if progress_callback is None or total_duration is None or total_duration <= 0:
+            continue
+
+        # Parse time from FFmpeg progress line
+        match = _TIME_RE.search(line) or _TIME_SHORT_RE.search(line)
+        if not match:
+            continue
+
+        current_time = _parse_time_to_seconds(match.group(1))
+
+        # Throttle progress reporting to once per second
+        now = time.time()
+        if now - last_report_time < 1.0:
+            continue
+        last_report_time = now
+
+        # Calculate progress within this run's slice
+        run_fraction = min(current_time / total_duration, 1.0)
+        overall_progress = int(progress_offset + run_fraction * progress_range)
+
+        # Parse speed for ETA estimation
+        speed_match = _SPEED_RE.search(line)
+        speed = float(speed_match.group(1)) if speed_match else None
+        remaining_time = total_duration - current_time
+        eta = (remaining_time / speed) if speed and speed > 0 else None
+
+        progress_callback(min(overall_progress, 99), eta)
+
+    process.wait()
+
+    if process.returncode != 0:
+        stderr_output = "".join(stderr_lines[-50:])
+        raise Exception(f"FFmpeg failed (exit {process.returncode}): {stderr_output[-500:]}")
 
 
 def _bitrate_to_bps(bitrate_str: str) -> int:
@@ -57,6 +158,7 @@ def process_video_transcode(
     output_format: str = "mp4",
     preset_name: str = None,
     hls_config: dict | None = None,
+    progress_callback: Callable[[int, float | None], None] | None = None,
 ) -> bool:
     """
     Transcodes a given source video file based on format and preset.
@@ -95,8 +197,11 @@ def process_video_transcode(
             os.makedirs(output_path, exist_ok=True)
 
             source_res = _probe_resolution(source_file_path)
+            total_duration = _probe_duration(source_file_path)
+            num_renditions = len(renditions)
+            range_per_rendition = 100.0 / num_renditions if num_renditions > 0 else 100.0
 
-            for rendition in renditions:
+            for idx, rendition in enumerate(renditions):
                 name = rendition["name"]
                 w = rendition["width"]
                 h = rendition["height"]
@@ -137,11 +242,12 @@ def process_video_transcode(
                 }
 
                 output_stream = ffmpeg.output(inp, rendition_file, **rendition_kwargs)
-                ffmpeg.run(
+                _run_ffmpeg_with_progress(
                     output_stream,
-                    overwrite_output=True,
-                    capture_stdout=True,
-                    capture_stderr=True,
+                    progress_callback,
+                    total_duration,
+                    progress_offset=idx * range_per_rendition,
+                    progress_range=range_per_rendition,
                 )
 
             _generate_master_playlist(output_path, renditions)
@@ -150,9 +256,8 @@ def process_video_transcode(
             output_file = output_path
             kwargs["movflags"] = "+faststart"
             stream = ffmpeg.output(stream, output_file, **kwargs)
-            ffmpeg.run(
-                stream, overwrite_output=True, capture_stdout=True, capture_stderr=True
-            )
+            total_duration = _probe_duration(source_file_path)
+            _run_ffmpeg_with_progress(stream, progress_callback, total_duration)
 
         return True
     except ffmpeg.Error as e:

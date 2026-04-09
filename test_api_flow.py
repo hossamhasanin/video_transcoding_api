@@ -32,6 +32,11 @@ except ImportError:
     print("ERROR: 'requests' is required. Install it with:  pip install requests")
     sys.exit(1)
 
+try:
+    import sseclient  # type: ignore
+except ImportError:
+    sseclient = None  # SSE tests will be skipped unless installed
+
 # ---------------------------------------------------------------------------
 # Terminal colours
 # ---------------------------------------------------------------------------
@@ -200,6 +205,52 @@ def poll_job_status(
     raise TimeoutError("Job status polling timed out")
 
 
+def stream_job_events(base_url: str, api_key: str, job_id: str, timeout: int = 600) -> dict:
+    """Connect to SSE event stream and wait for job completion."""
+    url = f"{base_url}/api/v1/jobs/{job_id}/events"
+    params = {"api_key": api_key}
+    start = time.time()
+
+    resp = requests.get(url, params=params, stream=True, timeout=timeout)
+    resp.raise_for_status()
+
+    client = sseclient.SSEClient(resp)
+    result: dict = {}
+
+    for event in client.events():
+        elapsed = int(time.time() - start)
+        event_type = event.event or "message"
+        try:
+            data = json.loads(event.data) if event.data else {}
+        except json.JSONDecodeError:
+            data = {}
+
+        if event_type == "progress":
+            pct = data.get("progress", "?")
+            eta = data.get("eta_seconds")
+            eta_str = f", ETA {eta:.0f}s" if eta else ""
+            log_info(f"Job {job_id[:8]}... SSE progress={pct}%{eta_str}  ({elapsed}s)")
+        elif event_type == "status_change":
+            status = data.get("status", "?")
+            log_info(f"Job {job_id[:8]}... SSE status={status}  ({elapsed}s)")
+        elif event_type == "done":
+            log_success(f"Job {job_id[:8]}... SSE done  ({elapsed}s)")
+            result = data
+            break
+        elif event_type == "error":
+            error = data.get("error_message", data.get("status", "unknown"))
+            raise RuntimeError(f"Job failed (SSE): {error}")
+        elif event_type == "heartbeat":
+            pass  # silent
+        else:
+            log_info(f"Job {job_id[:8]}... SSE event={event_type}  ({elapsed}s)")
+
+        if time.time() - start > timeout:
+            raise TimeoutError("SSE stream timed out")
+
+    return result
+
+
 def fetch_master_playlist(base_url: str, api_key: str, job_id: str) -> str:
     url = f"{base_url}/api/v1/jobs/{job_id}/stream/master.m3u8"
     params = {"api_key": api_key}
@@ -259,6 +310,16 @@ def main():
         action="store_true",
         help="Disable subtitle generation",
     )
+    parser.add_argument(
+        "--sse",
+        action="store_true",
+        help="Use SSE stream instead of polling for job status",
+    )
+    parser.add_argument(
+        "--sse-only",
+        action="store_true",
+        help="Only test the SSE stream (skip polling entirely)",
+    )
     args = parser.parse_args()
 
     api_key = args.api_key
@@ -285,6 +346,10 @@ def main():
     print(f"  Video:        {filename} ({file_size / 1024 / 1024:.1f} MB)")
     print(f"  Webhook:      {'disabled' if args.no_webhook else f'port {args.webhook_port}'}")
     print(f"  Subtitles:    {'disabled' if args.no_subtitles else 'enabled'}")
+    if args.sse or args.sse_only:
+        print(f"  Job tracking: SSE stream")
+    else:
+        print(f"  Job tracking: HTTP polling")
     print()
 
     # ------------------------------------------------------------------
@@ -367,19 +432,52 @@ def main():
     print()
 
     # ------------------------------------------------------------------
-    # Step 4 — Poll job status
+    # Step 4 — Wait for job completion (poll or SSE)
     # ------------------------------------------------------------------
-    log_info("Waiting for job to complete (this may take a while)...")
-    try:
-        final = poll_job_status(base_url, api_key, job_id)
-    except TimeoutError:
-        log_error("Job did not complete within the polling timeout.")
-        log_info("You can check status manually:")
-        log_info(f"  curl -H 'x-api-key: {api_key}' {base_url}/api/v1/jobs/{job_id}")
-        sys.exit(1)
-    except RuntimeError as e:
-        log_error(str(e))
-        sys.exit(1)
+    use_sse = args.sse or args.sse_only
+
+    final: dict = {}
+
+    if use_sse:
+        if sseclient is None:
+            log_error("--sse requires the 'sseclient-py' package. Install with:  pip install sseclient-py")
+            sys.exit(1)
+
+        log_info("Connecting to SSE event stream...")
+        try:
+            final = stream_job_events(base_url, api_key, job_id)
+        except TimeoutError:
+            log_error("SSE stream timed out before job completed.")
+            sys.exit(1)
+        except RuntimeError as e:
+            log_error(str(e))
+            sys.exit(1)
+    else:
+        log_info("Waiting for job to complete (polling)...")
+        try:
+            final = poll_job_status(base_url, api_key, job_id)
+        except TimeoutError:
+            log_error("Job did not complete within the polling timeout.")
+            log_info("You can check status manually:")
+            log_info(f"  curl -H 'x-api-key: {api_key}' {base_url}/api/v1/jobs/{job_id}")
+            sys.exit(1)
+        except RuntimeError as e:
+            log_error(str(e))
+            sys.exit(1)
+
+    # If --sse (not --sse-only), also do a polling comparison
+    if args.sse and not args.sse_only:
+        log_info("Verifying final status via polling...")
+        try:
+            poll_final = poll_job_status(base_url, api_key, job_id, timeout=30)
+            poll_status = poll_final.get("status")
+            if poll_status == "completed":
+                log_success(f"Polling confirmed: status={poll_status}")
+                final = poll_final  # use richer polling response
+            else:
+                log_warn(f"Polling returned status={poll_status}, expected completed")
+        except Exception as e:
+            log_warn(f"Polling verification failed: {e}")
 
     log_success("Job completed!")
     print(f"  Duration:        {final.get('processing_duration_seconds', '?')}s")
