@@ -2,11 +2,38 @@
 @source "../src/**";
 
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
-  --color-brand:        #007bff;
-  --color-brand-dark:   #0056b3;
-  --color-muted:        #6c757d;
+  /* Accent colors */
+  --color-accent:         #6366f1;
+  --color-accent-hover:   #4f46e5;
+  --color-accent-soft:    rgba(99, 102, 241, 0.10);
+  --color-accent-glow:    rgba(99, 102, 241, 0.25);
+
+  /* Surface colors */
+  --color-surface:        #f8f9fc;
+  --color-surface-raised: #ffffff;
+  --color-surface-overlay: rgba(255, 255, 255, 0.70);
+
+  /* Sidebar colors */
+  --color-sidebar-from:   #1e1b4b;
+  --color-sidebar-to:     #312e81;
+  --color-sidebar-active: rgba(255, 255, 255, 0.12);
+  --color-sidebar-hover:  rgba(255, 255, 255, 0.08);
+
+  /* Text colors */
+  --color-text-primary:   #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-tertiary:  #94a3b8;
+
+  /* Border colors */
+  --color-border:         #e2e8f0;
+  --color-border-subtle:  #f1f5f9;
+
+  /* Legacy color tokens (kept for backward compatibility during migration) */
+  --color-brand:        #6366f1;
+  --color-brand-dark:   #4f46e5;
+  --color-muted:        #64748b;
   --color-danger:       #dc3545;
   --color-danger-dark:  #c82333;
   --color-danger-bg:    #f8d7da;
@@ -15,13 +42,16 @@
   --color-success-text: #155724;
   --color-warning:      #ffc107;
   --color-warning-text: #333333;
-  --color-page-bg:      #f4f7f6;
-  --color-sidebar:      #1a1a1a;
-  --color-sidebar-hover:#333333;
+  --color-page-bg:      #f8f9fc;
+  --color-sidebar:      #1e1b4b;
+  --color-sidebar-hover: rgba(255, 255, 255, 0.08);
   --color-sidebar-user: #2a2a2a;
 
-  --shadow-card:      0 2px 4px rgba(0, 0, 0, 0.1);
-  --shadow-auth-card: 0 4px 20px rgba(0, 0, 0, 0.08);
+  /* Shadows */
+  --shadow-card:        0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+  --shadow-card-hover:  0 10px 25px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.04);
+  --shadow-auth-card:   0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-glow:        0 0 20px rgba(99, 102, 241, 0.25);
 
   --max-w-auth: 420px;
 
@@ -32,14 +62,73 @@
   --color-json-bool:       #7c1ac7;
   --color-json-null:       #808080;
   --color-json-bracket:    #333333;
-
-  /* Playground panel */
-  --color-pg-border:       #e0e0e0;
-  --color-pg-panel-bg:     #ffffff;
-  --color-pg-header-bg:    #f9fafb;
 }
 
 @keyframes stripe-slide {
   0% { background-position: 0 0; }
   100% { background-position: 40px 0; }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes slide-down {
+  0% { max-height: 0; opacity: 0; }
+  100% { max-height: 300px; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+
+  .animate-slide-down {
+    animation: slide-down 250ms ease-out forwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-soft {
+    animation: none;
+  }
+
+  .animate-slide-down {
+    animation: none;
+    opacity: 1;
+    max-height: 300px;
+    transition: opacity 150ms ease-out;
+  }
+
+  /* Disable transform-based hover effects */
+  .hover\:-translate-y-1:hover {
+    transform: none;
+  }
+
+  /* Disable spin/pulse animations from Tailwind */
+  .animate-spin {
+    animation: none;
+  }
+
+  .animate-pulse {
+    animation: none;
+  }
+
+  /* Disable all transitions to opacity-only */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Global focus-visible ring for interactive elements */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }

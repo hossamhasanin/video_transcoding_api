@@ -177,22 +177,22 @@ function Playground(): React.ReactElement {
     <div className="space-y-4">
       {submitting && (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin h-8 w-8 border-2 border-brand border-t-transparent rounded-full" />
-          <span className="ml-3 text-sm text-muted">Submitting job...</span>
+          <div className="animate-spin h-8 w-8 border-2 border-accent border-t-transparent rounded-full" />
+          <span className="ml-3 text-sm text-text-secondary">Submitting job...</span>
         </div>
       )}
 
       {error && !submitting && (
-        <div className="bg-danger/10 border border-danger/30 rounded-lg p-4">
-          <p className="text-sm font-medium text-danger">Error</p>
-          <p className="text-sm text-danger/80 mt-1">{error}</p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-red-700">Error</p>
+          <p className="text-sm text-red-600 mt-1">{error}</p>
         </div>
       )}
 
       {effectiveJob && !submitting && (
         <>
           {/* Warning callout */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
             This is a live job — it counts against your account usage and
             concurrent job limit.
           </div>
@@ -202,11 +202,11 @@ function Playground(): React.ReactElement {
           {/* Reset button when terminal */}
           {(effectiveJob.status === "completed" ||
             effectiveJob.status === "failed") && (
-            <div className="pt-2 border-t border-pg-border">
+            <div className="pt-2 border-t border-border">
               <button
                 type="button"
                 onClick={handleReset}
-                className="w-full py-2 rounded text-sm font-semibold bg-gray-100 text-[#333] hover:bg-gray-200 transition-colors cursor-pointer"
+                className="w-full py-2 rounded-lg text-sm font-semibold bg-accent-soft text-text-primary hover:bg-accent-glow transition-colors cursor-pointer"
               >
                 New Job
               </button>
@@ -216,7 +216,7 @@ function Playground(): React.ReactElement {
       )}
 
       {!submitting && !error && !effectiveJob && (
-        <div className="flex items-center justify-center py-12 text-sm text-muted">
+        <div className="flex items-center justify-center py-12 text-sm text-text-secondary">
           Submit a test job to see the response here.
         </div>
       )}
@@ -225,12 +225,12 @@ function Playground(): React.ReactElement {
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)]">
-      <h1 className="mb-4">Playground</h1>
+      <h1 className="mb-4 text-xl font-bold text-text-primary">Playground</h1>
 
       <div className="flex gap-6 flex-1 min-h-0 overflow-hidden">
         {/* Left panel — Form (~55%) */}
-        <div className="w-[55%] shrink-0 min-w-0 bg-pg-panel-bg border border-pg-border rounded-lg overflow-y-auto overflow-x-hidden p-6">
-          <h2 className="text-lg font-semibold mb-4 text-[#333]">
+        <div className="w-[55%] shrink-0 min-w-0 bg-surface-raised border border-border rounded-xl overflow-y-auto overflow-x-hidden p-6">
+          <h2 className="text-lg font-semibold mb-4 text-text-primary">
             Configuration
           </h2>
           <PlaygroundForm
@@ -253,7 +253,7 @@ function Playground(): React.ReactElement {
         </div>
 
         {/* Right panel — Preview (~45%) */}
-        <div className="w-[45%] min-w-0 border border-pg-border rounded-lg overflow-hidden">
+        <div className="w-[45%] min-w-0 border border-border rounded-xl overflow-hidden">
           <RequestPreview
             payload={previewPayload}
             response={effectiveJob}

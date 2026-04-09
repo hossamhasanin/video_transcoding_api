@@ -78,34 +78,34 @@ function VerifyEmail(): React.ReactElement {
 
   if (status === 'verifying') {
     return (
-      <div className="flex justify-center items-center min-h-[80vh]">
-        <div className="bg-white p-10 rounded-xl shadow-auth-card w-full max-w-auth">
-          <h1 className="m-0 mb-2 text-[28px] text-sidebar">Verifying...</h1>
-          <p className="text-[#666] mb-6 text-[15px]">Please wait while we verify your email.</p>
+      <div className="flex justify-center items-center min-h-[80vh] bg-gradient-to-b from-surface to-white">
+        <div className="bg-surface-raised p-10 rounded-2xl shadow-auth-card w-full max-w-auth">
+          <h1 className="m-0 mb-2 text-text-primary text-2xl font-bold">Verifying...</h1>
+          <p className="text-text-secondary mb-6 text-[15px]">Please wait while we verify your email.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex justify-center items-center min-h-[80vh]">
-      <div className="bg-white p-10 rounded-xl shadow-auth-card w-full max-w-auth">
-        <h1 className="m-0 mb-2 text-[28px] text-sidebar">{status === 'success' ? 'Email Verified!' : 'Verification Failed'}</h1>
-        <p className="text-[#666] mb-6 text-[15px]">{message}</p>
+    <div className="flex justify-center items-center min-h-[80vh] bg-gradient-to-b from-surface to-white">
+      <div className="bg-surface-raised p-10 rounded-2xl shadow-auth-card w-full max-w-auth">
+        <h1 className="m-0 mb-2 text-text-primary text-2xl font-bold">{status === 'success' ? 'Email Verified!' : 'Verification Failed'}</h1>
+        <p className={`mb-6 text-[15px] ${status === 'success' ? 'text-emerald-600' : 'text-text-secondary'}`}>{message}</p>
 
         {status === 'success' ? (
-          <Link to="/" className="block text-center no-underline w-full py-3 bg-brand text-white border-none rounded-md text-base font-medium hover:bg-brand-dark transition-colors">
+          <Link to="/" className="block text-center no-underline w-full py-3 bg-accent hover:bg-accent-hover text-white border-none rounded-lg text-base font-medium transition-colors">
             Go to Dashboard
           </Link>
         ) : (
           <>
             {isAuthenticated && (
-              <button onClick={handleResend} className="w-full py-3 bg-brand text-white border-none rounded-md text-base font-medium cursor-pointer transition-colors hover:bg-brand-dark disabled:bg-muted disabled:cursor-not-allowed">
+              <button onClick={handleResend} className="w-full py-3 bg-accent hover:bg-accent-hover text-white border-none rounded-lg text-base font-medium cursor-pointer transition-colors disabled:bg-muted disabled:cursor-not-allowed">
                 Resend Verification Email
               </button>
             )}
             {!isAuthenticated && (
-              <Link to="/login" className="block text-center no-underline w-full py-3 bg-brand text-white border-none rounded-md text-base font-medium hover:bg-brand-dark transition-colors">
+              <Link to="/login" className="block text-center no-underline w-full py-3 bg-accent hover:bg-accent-hover text-white border-none rounded-lg text-base font-medium transition-colors">
                 Sign In
               </Link>
             )}

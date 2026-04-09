@@ -34,6 +34,8 @@ const PRESET_OPTIONS = [
   { value: 'instagram', label: 'Instagram' },
 ]
 
+const ACTIVE_STATUSES = ['processing', 'transcoding', 'uploading']
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -68,17 +70,22 @@ function formatDuration(seconds: number | null): string {
 // ---------------------------------------------------------------------------
 
 function StatusBadge({ status }: { status: string }): ReactNode {
+  const isActive = ACTIVE_STATUSES.includes(status)
+
   const styles: Record<string, string> = {
     pending: 'bg-gray-100 text-gray-700',
-    processing: 'bg-yellow-50 text-yellow-700',
-    transcoding: 'bg-yellow-50 text-yellow-700',
-    uploading: 'bg-yellow-50 text-yellow-700',
-    completed: 'bg-success-bg text-success-text',
-    failed: 'bg-danger-bg text-danger-text',
+    processing: 'bg-amber-50 text-amber-700',
+    transcoding: 'bg-amber-50 text-amber-700',
+    uploading: 'bg-amber-50 text-amber-700',
+    completed: 'bg-emerald-50 text-emerald-700',
+    failed: 'bg-rose-50 text-rose-700',
     cancelled: 'bg-gray-100 text-gray-500',
   }
+
   return (
-    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] ?? 'bg-gray-100 text-gray-700'}`}>
+    <span
+      className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${isActive ? 'animate-pulse-soft' : ''} ${styles[status] ?? 'bg-gray-100 text-gray-700'}`}
+    >
       {status}
     </span>
   )
@@ -86,47 +93,74 @@ function StatusBadge({ status }: { status: string }): ReactNode {
 
 function ExpandedRow({ job }: { job: Job }): ReactNode {
   const isFailed = job.status === 'failed'
-  const borderColor = isFailed ? 'border-l-[#dc3545]' : 'border-l-brand'
-  const bgColor = isFailed ? 'bg-[#fff5f5]' : 'bg-[#f0f4f8]'
 
   return (
     <tr>
       <td colSpan={7} className="p-0">
-        <div className={`${bgColor} p-3 px-4 border-l-[3px] ${borderColor}`}>
-          <div className="grid grid-cols-3 gap-3 text-sm">
+        <div
+          className={`animate-slide-down ${isFailed ? 'bg-rose-50/50' : 'bg-accent-soft/30'} p-4 px-5 border-l-[3px] ${isFailed ? 'border-l-danger' : 'border-l-accent'}`}
+        >
+          <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <span className="block text-[#6c757d] font-medium text-xs mb-0.5">Source URL</span>
+              <span className="block text-text-secondary font-medium text-xs mb-1">
+                Source URL
+              </span>
               <span className="font-mono text-xs break-all">{job.source_url}</span>
             </div>
             <div>
-              <span className="block text-[#6c757d] font-medium text-xs mb-0.5">Output URL</span>
-              <span className="font-mono text-xs break-all text-brand">{job.status === 'completed' ? 'Available in API response' : '—'}</span>
+              <span className="block text-text-secondary font-medium text-xs mb-1">
+                Output URL
+              </span>
+              <span className="font-mono text-xs break-all text-accent">
+                {job.status === 'completed' ? 'Available in API response' : '—'}
+              </span>
             </div>
             <div>
-              <span className="block text-[#6c757d] font-medium text-xs mb-0.5">Processing Time</span>
-              <span className="text-base font-semibold text-[#1a1a1a]">
-                {job.processing_duration_seconds !== null ? Math.round(job.processing_duration_seconds) : '—'}
+              <span className="block text-text-secondary font-medium text-xs mb-1">
+                Processing Time
+              </span>
+              <span className="text-base font-semibold text-text-primary">
+                {job.processing_duration_seconds !== null
+                  ? Math.round(job.processing_duration_seconds)
+                  : '—'}
               </span>
               {job.processing_duration_seconds !== null && (
-                <span className="text-xs text-[#6c757d]"> seconds</span>
+                <span className="text-xs text-text-secondary"> seconds</span>
               )}
             </div>
             <div>
-              <span className="block text-[#6c757d] font-medium text-xs mb-0.5">File Size</span>
+              <span className="block text-text-secondary font-medium text-xs mb-1">
+                File Size
+              </span>
               <span>
-                {formatBytes(job.source_size_bytes)}{job.output_size_bytes !== null ? ` → ${formatBytes(job.output_size_bytes)}` : ''}
+                {formatBytes(job.source_size_bytes)}
+                {job.output_size_bytes !== null
+                  ? ` → ${formatBytes(job.output_size_bytes)}`
+                  : ''}
               </span>
             </div>
             <div>
-              <span className="block text-[#6c757d] font-medium text-xs mb-0.5">Subtitle</span>
-              <span>{job.generate_subtitles ? (job.subtitle_url ? 'Generated' : 'Pending') : 'Not requested'}</span>
+              <span className="block text-text-secondary font-medium text-xs mb-1">
+                Subtitle
+              </span>
+              <span>
+                {job.generate_subtitles
+                  ? job.subtitle_url
+                    ? 'Generated'
+                    : 'Pending'
+                  : 'Not requested'}
+              </span>
             </div>
             <div>
-              <span className="block text-[#6c757d] font-medium text-xs mb-0.5">Error</span>
+              <span className="block text-text-secondary font-medium text-xs mb-1">
+                Error
+              </span>
               {isFailed && job.error_message ? (
-                <span className="text-[#dc3545] font-mono text-xs break-all">{job.error_message}</span>
+                <span className="text-danger font-mono text-xs break-all">
+                  {job.error_message}
+                </span>
               ) : (
-                <span className="text-[#28a745]">—</span>
+                <span className="text-emerald-600">—</span>
               )}
             </div>
           </div>
@@ -153,15 +187,23 @@ function JobRow({
     <>
       <tr
         onClick={() => onToggle(job.id)}
-        className={`border-b border-[#eee] cursor-pointer hover:bg-[#f8f9fa] ${isExpanded ? 'bg-[#f8f9fa]' : ''}`}
+        className={`border-b border-border-subtle cursor-pointer hover:bg-accent-soft transition-colors duration-150 ${isExpanded ? 'bg-accent-soft/50' : ''}`}
       >
-        <td className="p-1.5 px-3 text-[#6c757d] text-xs">{isExpanded ? '▼' : '▶'}</td>
-        <td className="p-1.5 px-3 font-mono text-xs">{job.id.slice(0, 8)}...</td>
-        <td className="p-1.5 px-3"><StatusBadge status={job.status} /></td>
-        <td className="p-1.5 px-3">{job.preset ?? '—'}</td>
-        <td className="p-1.5 px-3">{job.output_format}</td>
-        <td className="p-1.5 px-3 text-[#6c757d]">{formatRelativeTime(job.created_at)}</td>
-        <td className="p-1.5 px-3">{formatDuration(job.processing_duration_seconds)}</td>
+        <td className="p-2 px-3 text-text-tertiary text-xs">
+          {isExpanded ? '▼' : '▶'}
+        </td>
+        <td className="p-2 px-3 font-mono text-xs">{job.id.slice(0, 8)}...</td>
+        <td className="p-2 px-3">
+          <StatusBadge status={job.status} />
+        </td>
+        <td className="p-2 px-3">{job.preset ?? '—'}</td>
+        <td className="p-2 px-3">{job.output_format}</td>
+        <td className="p-2 px-3 text-text-secondary">
+          {formatRelativeTime(job.created_at)}
+        </td>
+        <td className="p-2 px-3">
+          {formatDuration(job.processing_duration_seconds)}
+        </td>
       </tr>
       {isExpanded && <ExpandedRow job={job} />}
     </>
@@ -207,63 +249,95 @@ function JobHistory(): ReactNode {
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const end = Math.min(page * PAGE_SIZE, total)
 
-  const hasActiveFilters = Object.values(filters).some((v) => v !== undefined && v !== '')
+  const hasActiveFilters = Object.values(filters).some(
+    (v) => v !== undefined && v !== '',
+  )
 
   return (
     <div>
-      <h2 className="mb-3">Job History</h2>
+      <h2 className="mb-3 text-lg font-semibold text-text-primary">Job History</h2>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-lg p-2.5 px-3.5 mb-2 flex gap-2 items-center flex-wrap border border-[#e0e0e0]">
-        <span className="text-xs text-[#6c757d] font-semibold">Filters:</span>
+      <div className="bg-surface-raised rounded-xl p-3 px-4 mb-3 flex gap-2.5 items-center flex-wrap border border-border">
+        <span className="text-xs text-text-secondary font-semibold uppercase tracking-wider">
+          Filters
+        </span>
 
         <select
           value={filters.status ?? ''}
           onChange={(e) => updateFilter('status', e.target.value)}
-          className="p-1 px-2 border border-[#ccc] rounded text-xs bg-white"
+          className="rounded-full border border-border px-3 py-1 text-xs bg-surface-raised focus:border-accent focus:ring-2 focus:ring-accent-glow outline-none transition-colors duration-150"
         >
-          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {STATUS_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </select>
 
         <select
           value={filters.output_format ?? ''}
           onChange={(e) => updateFilter('output_format', e.target.value)}
-          className="p-1 px-2 border border-[#ccc] rounded text-xs bg-white"
+          className="rounded-full border border-border px-3 py-1 text-xs bg-surface-raised focus:border-accent focus:ring-2 focus:ring-accent-glow outline-none transition-colors duration-150"
         >
-          {FORMAT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {FORMAT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </select>
 
         <select
           value={filters.preset ?? ''}
           onChange={(e) => updateFilter('preset', e.target.value)}
-          className="p-1 px-2 border border-[#ccc] rounded text-xs bg-white"
+          className="rounded-full border border-border px-3 py-1 text-xs bg-surface-raised focus:border-accent focus:ring-2 focus:ring-accent-glow outline-none transition-colors duration-150"
         >
-          {PRESET_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {PRESET_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </select>
 
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-[#6c757d]">From</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-text-secondary">From</span>
           <input
             type="date"
-            value={filters.created_after ? filters.created_after.split('T')[0] : ''}
-            onChange={(e) => updateFilter('created_after', e.target.value ? `${e.target.value}T00:00:00` : '')}
-            className="p-1 px-2 border border-[#ccc] rounded text-xs w-[120px]"
+            value={
+              filters.created_after ? filters.created_after.split('T')[0] : ''
+            }
+            onChange={(e) =>
+              updateFilter(
+                'created_after',
+                e.target.value ? `${e.target.value}T00:00:00` : '',
+              )
+            }
+            className="rounded-lg border border-border px-2 py-1 text-xs w-[130px] bg-surface-raised focus:border-accent focus:ring-2 focus:ring-accent-glow outline-none transition-colors duration-150"
           />
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-[#6c757d]">To</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-text-secondary">To</span>
           <input
             type="date"
-            value={filters.created_before ? filters.created_before.split('T')[0] : ''}
-            onChange={(e) => updateFilter('created_before', e.target.value ? `${e.target.value}T23:59:59` : '')}
-            className="p-1 px-2 border border-[#ccc] rounded text-xs w-[120px]"
+            value={
+              filters.created_before
+                ? filters.created_before.split('T')[0]
+                : ''
+            }
+            onChange={(e) =>
+              updateFilter(
+                'created_before',
+                e.target.value ? `${e.target.value}T23:59:59` : '',
+              )
+            }
+            className="rounded-lg border border-border px-2 py-1 text-xs w-[130px] bg-surface-raised focus:border-accent focus:ring-2 focus:ring-accent-glow outline-none transition-colors duration-150"
           />
         </div>
 
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="ml-auto p-1 px-2.5 bg-[#dc3545] text-white border-none rounded text-xs cursor-pointer"
+            className="ml-auto px-3 py-1 bg-danger/10 text-danger hover:bg-danger/20 rounded-lg text-xs cursor-pointer transition-colors duration-150 border-none"
           >
             Clear
           </button>
@@ -272,35 +346,53 @@ function JobHistory(): ReactNode {
 
       {/* Error state */}
       {error && (
-        <div className="bg-danger-bg text-danger-text p-2.5 rounded mb-2">
+        <div className="bg-rose-50 text-rose-700 p-3 rounded-lg mb-3 border border-rose-200">
           {getErrorMessage(error, 'Something went wrong while loading jobs.')}
         </div>
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-lg overflow-hidden border border-[#e0e0e0]">
+      <div className="bg-surface-raised rounded-xl overflow-x-auto border border-border">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="bg-[#f8f9fa] border-b-2 border-[#dee2e6]">
-              <th className="p-2 px-3 text-left w-6"></th>
-              <th className="p-2 px-3 text-left">ID</th>
-              <th className="p-2 px-3 text-left">Status</th>
-              <th className="p-2 px-3 text-left">Preset</th>
-              <th className="p-2 px-3 text-left">Format</th>
-              <th className="p-2 px-3 text-left">Created</th>
-              <th className="p-2 px-3 text-left">Duration</th>
+            <tr className="backdrop-blur-sm bg-white/80 border-b border-border">
+              <th className="p-2.5 px-3 text-left w-6"></th>
+              <th className="p-2.5 px-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                ID
+              </th>
+              <th className="p-2.5 px-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                Status
+              </th>
+              <th className="p-2.5 px-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                Preset
+              </th>
+              <th className="p-2.5 px-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                Format
+              </th>
+              <th className="p-2.5 px-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                Created
+              </th>
+              <th className="p-2.5 px-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                Duration
+              </th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="p-5 text-center text-[#6c757d]">
+                <td
+                  colSpan={7}
+                  className="p-8 text-center text-text-secondary"
+                >
                   Loading jobs...
                 </td>
               </tr>
             ) : jobs.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-5 text-center text-[#6c757d]">
+                <td
+                  colSpan={7}
+                  className="p-8 text-center text-text-secondary"
+                >
                   No jobs found{hasActiveFilters ? ' with current filters' : ''}.
                 </td>
               </tr>
@@ -319,31 +411,43 @@ function JobHistory(): ReactNode {
 
         {/* Pagination */}
         {total > 0 && (
-          <div className="p-2 px-3 flex justify-between items-center border-t border-[#eee] text-xs text-[#6c757d]">
-            <span>Showing {start}-{end} of {total}</span>
+          <div className="p-3 px-4 flex justify-between items-center border-t border-border-subtle text-xs text-text-secondary">
+            <span>
+              Showing {start}–{end} of {total}
+            </span>
             <div className="flex gap-1">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-1 px-2 border border-[#ccc] rounded bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-2.5 py-1 rounded-lg text-text-secondary hover:bg-accent-soft border-none bg-transparent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors duration-150"
               >
                 Prev
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1)
                 .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
                 .reduce<(number | string)[]>((acc, p, idx, arr) => {
-                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...')
+                  if (idx > 0 && p - (arr[idx - 1] as number) > 1)
+                    acc.push('...')
                   acc.push(p)
                   return acc
                 }, [])
                 .map((p, idx) =>
                   typeof p === 'string' ? (
-                    <span key={`ellipsis-${idx}`} className="p-1 px-2 text-[#6c757d]">...</span>
+                    <span
+                      key={`ellipsis-${idx}`}
+                      className="px-2 py-1 text-text-tertiary"
+                    >
+                      ...
+                    </span>
                   ) : (
                     <button
                       key={p}
                       onClick={() => setPage(p)}
-                      className={`p-1 px-2 border border-[#ccc] rounded ${p === page ? 'bg-brand text-white' : 'bg-white'}`}
+                      className={`px-2.5 py-1 rounded-lg border-none cursor-pointer transition-colors duration-150 ${
+                        p === page
+                          ? 'bg-accent text-white'
+                          : 'text-text-secondary hover:bg-accent-soft bg-transparent'
+                      }`}
                     >
                       {p}
                     </button>
@@ -352,7 +456,7 @@ function JobHistory(): ReactNode {
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-1 px-2 border border-[#ccc] rounded bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-2.5 py-1 rounded-lg text-text-secondary hover:bg-accent-soft border-none bg-transparent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors duration-150"
               >
                 Next
               </button>

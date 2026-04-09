@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Key, AlertCircle, CheckCircle2, X, Plus, Loader2 } from 'lucide-react'
 import { useApiKeys, useCreateApiKey, useRevokeApiKey } from '../hooks/useApiKeys'
 import { getErrorMessage } from '../utils/http'
 
@@ -32,76 +33,114 @@ function ApiKeyManager(): React.ReactElement {
   const isMutating = isCreating || isRevoking
 
   return (
-    <div className="bg-white p-5 rounded-lg shadow-card">
+    <div className="bg-surface-raised rounded-xl border border-border p-6">
       {error && (
-        <div className="bg-danger-bg text-danger-text p-2.5 rounded mb-5">
-          {getErrorMessage(error, 'Something went wrong while loading API keys.')}
+        <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg mb-5">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{getErrorMessage(error, 'Something went wrong while loading API keys.')}</span>
         </div>
       )}
 
       {createdKey && (
-        <div className="bg-success-bg text-success-text p-2.5 rounded mb-5">
-          <strong>New API Key Created!</strong> Please copy it now — you won&apos;t be able to see it again:
-          <br />
-          <code className="break-all">{createdKey}</code>
-          <button className="ml-2.5" onClick={() => setCreatedKey(null)}>Dismiss</button>
+        <div className="bg-accent-soft border border-accent/20 text-accent p-4 rounded-lg mb-5">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle2 className="w-4 h-4" />
+            <strong>New API Key Created!</strong>
+          </div>
+          <p className="text-sm text-text-secondary mb-2">
+            Please copy it now — you won&apos;t be able to see it again:
+          </p>
+          <code className="block break-all bg-white/70 p-2.5 rounded text-sm font-mono text-text-primary">
+            {createdKey}
+          </code>
+          <button
+            className="flex items-center gap-1 mt-3 text-xs text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+            onClick={() => setCreatedKey(null)}
+          >
+            <X className="w-3.5 h-3.5" />
+            Dismiss
+          </button>
         </div>
       )}
 
-      <form onSubmit={handleCreate} className="flex gap-2.5 mb-5">
+      <form onSubmit={handleCreate} className="flex gap-2.5 mb-6">
         <input
           type="text"
           value={newKeyName}
           onChange={(e) => setNewKeyName(e.target.value)}
           placeholder="New Key Name (e.g., Production, Staging)"
           required
-          className="p-2 border border-[#ddd] rounded flex-1"
+          className="p-2.5 border border-border rounded-lg flex-1 text-sm
+                     focus:ring-2 focus:ring-accent focus:border-accent outline-none
+                     placeholder:text-text-tertiary"
         />
         <button
           type="submit"
           disabled={isMutating}
-          className={`px-4 py-2 bg-brand text-white border-none rounded ${isMutating ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+          className={`flex items-center gap-1.5 px-4 py-2.5 bg-accent hover:bg-accent-hover text-white
+                      rounded-lg text-sm font-medium transition-colors
+                      ${isMutating ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
         >
-          {isCreating ? 'Creating...' : 'Create Key'}
+          {isCreating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              Create Key
+            </>
+          )}
         </button>
       </form>
 
       {isLoading ? (
-        <p>Loading API keys...</p>
+        <div className="flex items-center justify-center py-8 text-text-secondary">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
+          Loading API keys...
+        </div>
       ) : (
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-[#f8f9fa] text-left">
-              <th className="p-3 border-b border-[#ddd]">Name</th>
-              <th className="p-3 border-b border-[#ddd]">Prefix</th>
-              <th className="p-3 border-b border-[#ddd]">Created</th>
-              <th className="p-3 border-b border-[#ddd]">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {keys.map((k) => (
-              <tr key={k.id}>
-                <td className="p-3 border-b border-[#ddd]">{k.name}</td>
-                <td className="p-3 border-b border-[#ddd]"><code>{k.key_prefix}...</code></td>
-                <td className="p-3 border-b border-[#ddd]">{new Date(k.created_at).toLocaleDateString()}</td>
-                <td className="p-3 border-b border-[#ddd]">
-                  <button
-                    onClick={() => handleRevoke(k.id)}
-                    disabled={isMutating}
-                    className={`px-3 py-1.5 bg-danger text-white border-none rounded ${isMutating ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    {isRevoking ? 'Revoking...' : 'Revoke'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {keys.length === 0 && (
-              <tr>
-                <td colSpan={4} className="p-3 text-center text-[#666]">No API keys yet. Create one to get started.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <div className="divide-y divide-border-subtle">
+          {keys.map((k) => (
+            <div
+              key={k.id}
+              className="flex items-center justify-between py-3.5 first:pt-0 last:border-b-0"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-accent-soft flex items-center justify-center shrink-0">
+                  <Key className="w-4 h-4 text-accent" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-text-primary truncate">{k.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="font-mono text-xs bg-accent-soft text-accent rounded px-2 py-0.5">
+                      {k.key_prefix}...
+                    </span>
+                    <span className="text-xs text-text-tertiary">
+                      Created {new Date(k.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => handleRevoke(k.id)}
+                disabled={isMutating}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors
+                           bg-red-50 text-red-600 hover:bg-red-100 border border-red-200
+                           ${isMutating ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                {isRevoking ? 'Revoking...' : 'Revoke'}
+              </button>
+            </div>
+          ))}
+          {keys.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-10 text-text-tertiary">
+              <Key className="w-8 h-8 mb-2" />
+              <p className="text-sm">No API keys yet. Create one to get started.</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

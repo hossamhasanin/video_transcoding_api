@@ -14,7 +14,7 @@ const METHOD_COLORS: Record<string, string> = {
 };
 
 const STATUS_BADGE: Record<FlowStep["status"], { ring: string; icon: string }> = {
-  pending: { ring: "border-gray-300 bg-white", icon: "text-gray-300" },
+  pending: { ring: "border-border bg-surface-raised", icon: "text-text-tertiary" },
   active: { ring: "border-blue-500 bg-blue-50", icon: "text-blue-500" },
   completed: { ring: "border-green-500 bg-green-50", icon: "text-green-500" },
   error: { ring: "border-red-500 bg-red-50", icon: "text-red-500" },
@@ -47,7 +47,7 @@ function ApiFlowStep({ step, isLast }: ApiFlowStepProps): React.ReactElement {
       {!isLast && (
         <div
           className={`absolute left-[15px] top-[36px] bottom-0 w-0.5 ${
-            step.status === "completed" ? "bg-green-300" : "bg-gray-200"
+            step.status === "completed" ? "bg-green-300" : "bg-border"
           }`}
         />
       )}
@@ -64,7 +64,7 @@ function ApiFlowStep({ step, isLast }: ApiFlowStepProps): React.ReactElement {
           ) : step.status === "active" ? (
             <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
           ) : (
-            <span className="text-gray-400">{step.stepNumber}</span>
+            <span className="text-text-tertiary">{step.stepNumber}</span>
           )}
         </div>
 
@@ -77,9 +77,9 @@ function ApiFlowStep({ step, isLast }: ApiFlowStepProps): React.ReactElement {
             className="w-full text-left cursor-pointer group"
           >
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-[#333]">{step.title}</span>
+              <span className="text-sm font-semibold text-text-primary">{step.title}</span>
               <svg
-                className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}
+                className={`w-4 h-4 text-text-tertiary transition-transform ${expanded ? "rotate-180" : ""}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -88,24 +88,24 @@ function ApiFlowStep({ step, isLast }: ApiFlowStepProps): React.ReactElement {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
-            <p className="text-xs text-muted mt-0.5">{step.description}</p>
+            <p className="text-xs text-text-secondary mt-0.5">{step.description}</p>
           </button>
 
           {/* Expanded content */}
           {expanded && (
             <div className="mt-2 space-y-2">
               {/* Method + endpoint */}
-              <div className="bg-pg-header-bg rounded-md px-3 py-2">
+              <div className="bg-surface rounded-md px-3 py-2">
                 <div className="flex items-center gap-2 text-sm font-mono">
                   <span
                     className={`inline-block px-1.5 py-0.5 text-white text-[10px] font-bold rounded ${METHOD_COLORS[step.method]}`}
                   >
                     {step.method}
                   </span>
-                  <span className="text-[#333] text-xs break-all">{step.endpoint}</span>
+                  <span className="text-text-primary text-xs break-all">{step.endpoint}</span>
                 </div>
                 {step.authHeader && (
-                  <div className="mt-1 text-[10px] font-mono text-muted">{step.authHeader}</div>
+                  <div className="mt-1 text-[10px] font-mono text-text-secondary">{step.authHeader}</div>
                 )}
               </div>
 
@@ -119,8 +119,8 @@ function ApiFlowStep({ step, isLast }: ApiFlowStepProps): React.ReactElement {
               {/* Request body */}
               {step.requestBody !== null && (
                 <div>
-                  <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1">Request</div>
-                  <div className="bg-gray-50 border border-pg-border rounded-md p-2 overflow-x-auto">
+                  <div className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1">Request</div>
+                  <div className="bg-surface border border-border rounded-md p-2 overflow-x-auto">
                     <pre className="text-[11px] leading-relaxed font-mono m-0 whitespace-pre-wrap break-all">
                       <code dangerouslySetInnerHTML={{ __html: highlightJson(formatJson(step.requestBody)) }} />
                     </pre>
@@ -131,8 +131,8 @@ function ApiFlowStep({ step, isLast }: ApiFlowStepProps): React.ReactElement {
               {/* Response body */}
               {step.responseBody !== null && (
                 <div>
-                  <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1">Response</div>
-                  <div className="bg-gray-50 border border-pg-border rounded-md p-2 overflow-x-auto">
+                  <div className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1">Response</div>
+                  <div className="bg-surface border border-border rounded-md p-2 overflow-x-auto">
                     <pre className="text-[11px] leading-relaxed font-mono m-0 whitespace-pre-wrap break-all">
                       <code dangerouslySetInnerHTML={{ __html: highlightJson(formatJson(step.responseBody)) }} />
                     </pre>
@@ -144,7 +144,7 @@ function ApiFlowStep({ step, isLast }: ApiFlowStepProps): React.ReactElement {
               <button
                 type="button"
                 onClick={handleCopyCurl}
-                className="px-2.5 py-1 text-[10px] font-medium rounded border border-pg-border bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+                className="px-2.5 py-1 text-[10px] font-medium rounded-lg border border-border bg-surface-raised hover:bg-accent-soft transition-colors cursor-pointer"
               >
                 {copied ? "Copied!" : "Copy cURL"}
               </button>
@@ -153,7 +153,7 @@ function ApiFlowStep({ step, isLast }: ApiFlowStepProps): React.ReactElement {
                 <button
                   type="button"
                   onClick={() => setExpanded(false)}
-                  className="ml-2 px-2.5 py-1 text-[10px] font-medium rounded border border-pg-border bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="ml-2 px-2.5 py-1 text-[10px] font-medium rounded-lg border border-border bg-surface-raised hover:bg-accent-soft transition-colors cursor-pointer"
                 >
                   Collapse
                 </button>

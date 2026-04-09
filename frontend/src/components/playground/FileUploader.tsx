@@ -72,10 +72,10 @@ function FileUploader({
 
   if (uploadedFile) {
     return (
-      <div className="flex items-center justify-between p-3 border border-pg-border rounded bg-white overflow-hidden">
+      <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-surface-raised overflow-hidden">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <svg
-            className="w-5 h-5 text-brand shrink-0"
+            className="w-5 h-5 text-accent shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -87,12 +87,12 @@ function FileUploader({
               d="M5 13l4 4L19 7"
             />
           </svg>
-          <span className="text-sm text-[#333] truncate">{uploadedFile}</span>
+          <span className="text-sm text-text-primary truncate">{uploadedFile}</span>
         </div>
         <button
           type="button"
           onClick={onRemove}
-          className="text-sm text-danger hover:text-danger/80 shrink-0 ml-2 cursor-pointer"
+          className="text-sm text-red-600 hover:text-red-700 shrink-0 ml-2 cursor-pointer"
         >
           Remove
         </button>
@@ -111,8 +111,8 @@ function FileUploader({
         onDragLeave={handleDragLeave}
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
           dragging
-            ? "border-brand bg-brand/5"
-            : "border-pg-border hover:border-brand/50"
+            ? "border-accent bg-accent-soft"
+            : "border-border hover:border-accent/50"
         }`}
       >
         <input
@@ -125,18 +125,18 @@ function FileUploader({
 
         {phase === "uploading" ? (
           <div className="space-y-3">
-            <p className="text-sm text-[#333] font-medium">Uploading...</p>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <p className="text-sm text-text-primary font-medium">Uploading...</p>
+            <div className="w-full bg-border rounded-full h-2">
               <div
-                className="bg-brand h-2 rounded-full transition-all"
+                className="bg-accent h-2 rounded-full transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="text-xs text-muted">{Math.round(progress)}%</p>
+            <p className="text-xs text-text-secondary">{Math.round(progress)}%</p>
           </div>
         ) : phase === "processing" ? (
           <div className="space-y-3">
-            <p className="text-sm text-[#333] font-medium">
+            <p className="text-sm text-text-primary font-medium">
               Processing upload...
             </p>
             <div className="w-full rounded-full h-2 overflow-hidden">
@@ -144,18 +144,18 @@ function FileUploader({
                 className="h-full rounded-full"
                 style={{
                   backgroundImage:
-                    "repeating-linear-gradient(-45deg, var(--color-brand) 0px, var(--color-brand) 10px, rgba(255,255,255,0.3) 10px, rgba(255,255,255,0.3) 20px)",
+                    "repeating-linear-gradient(-45deg, var(--color-accent) 0px, var(--color-accent) 10px, rgba(255,255,255,0.3) 10px, rgba(255,255,255,0.3) 20px)",
                   backgroundSize: "40px 40px",
                   animation: "stripe-slide 0.8s linear infinite",
                 }}
               />
             </div>
-            <p className="text-xs text-muted">Saving to storage...</p>
+            <p className="text-xs text-text-secondary">Saving to storage...</p>
           </div>
         ) : (
           <div className="space-y-2">
             <svg
-              className="w-8 h-8 mx-auto text-muted"
+              className="w-8 h-8 mx-auto text-text-secondary"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -167,18 +167,18 @@ function FileUploader({
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
               />
             </svg>
-            <p className="text-sm text-[#333]">
-              <span className="text-brand font-medium">Click to upload</span>{" "}
+            <p className="text-sm text-text-primary">
+              <span className="text-accent font-medium">Click to upload</span>{" "}
               or drag and drop
             </p>
-            <p className="text-xs text-muted">
+            <p className="text-xs text-text-secondary">
               MP4, MOV, WebM, AVI, MKV (max {MAX_FILE_SIZE_MB}MB)
             </p>
           </div>
         )}
       </div>
 
-      {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
+      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
     </div>
   );
 }

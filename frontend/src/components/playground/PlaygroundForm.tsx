@@ -94,7 +94,7 @@ function PlaygroundForm({
     <div className="space-y-6">
       {/* Source — URL / Upload toggle */}
       <div>
-        <label className="block text-sm font-semibold mb-1.5 text-[#333]">
+        <label className="block text-sm font-semibold mb-1.5 text-text-primary">
           Source
         </label>
         <div className="flex gap-2 mb-2">
@@ -103,10 +103,10 @@ function PlaygroundForm({
               key={mode}
               type="button"
               onClick={() => setSourceMode(mode)}
-              className={`px-4 py-2 rounded text-sm font-medium border transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
                 state.source_mode === mode
-                  ? "bg-brand text-white border-brand"
-                  : "bg-white text-[#333] border-pg-border hover:bg-gray-50"
+                  ? "bg-accent text-white border-accent"
+                  : "bg-surface-raised text-text-primary border-border hover:bg-accent-soft"
               }`}
             >
               {mode === "url" ? "URL" : "Upload File"}
@@ -121,8 +121,8 @@ function PlaygroundForm({
             value={state.source_url}
             onChange={(e) => setField("source_url", e.target.value)}
             placeholder="https://example.com/video.mp4"
-            className={`w-full p-2.5 border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand ${
-              sourceUrlError ? "border-danger" : "border-pg-border"
+            className={`w-full p-2.5 border rounded-lg bg-surface-raised text-sm focus:outline-none focus:ring-2 focus:ring-accent-glow focus:border-accent ${
+              sourceUrlError ? "border-red-400" : "border-border"
             }`}
           />
         ) : (
@@ -136,13 +136,13 @@ function PlaygroundForm({
           />
         )}
         {sourceUrlError && (
-          <p className="mt-1 text-xs text-danger">{sourceUrlError}</p>
+          <p className="mt-1 text-xs text-red-600">{sourceUrlError}</p>
         )}
       </div>
 
       {/* Output Format */}
       <div>
-        <label className="block text-sm font-semibold mb-1.5 text-[#333]">
+        <label className="block text-sm font-semibold mb-1.5 text-text-primary">
           Output Format
         </label>
         <div className="flex gap-2">
@@ -151,10 +151,10 @@ function PlaygroundForm({
               key={fmt}
               type="button"
               onClick={() => setField("output_format", fmt)}
-              className={`px-4 py-2 rounded text-sm font-medium border transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
                 state.output_format === fmt
-                  ? "bg-brand text-white border-brand"
-                  : "bg-white text-[#333] border-pg-border hover:bg-gray-50"
+                  ? "bg-accent text-white border-accent"
+                  : "bg-surface-raised text-text-primary border-border hover:bg-accent-soft"
               }`}
             >
               {fmt.toUpperCase()}
@@ -165,21 +165,21 @@ function PlaygroundForm({
 
       {/* HLS Configuration — conditionally rendered */}
       {showHls && (
-        <div className="space-y-5 border border-pg-border rounded-lg p-4 bg-gray-50/50">
-          <h3 className="text-sm font-semibold text-[#333]">HLS Configuration</h3>
+        <div className="space-y-5 border border-border rounded-lg p-4 bg-surface">
+          <h3 className="text-sm font-semibold text-text-primary">HLS Configuration</h3>
 
           {/* Segment Duration */}
           <div>
             <label
               htmlFor="segment_duration"
-              className="block text-sm font-medium mb-1 text-[#333]"
+              className="block text-sm font-medium mb-1 text-text-primary"
             >
               Segment Duration:{" "}
-              <span className="text-brand font-semibold">
+              <span className="text-accent font-semibold">
                 {hls.segment_duration}s
               </span>
             </label>
-            <p className="text-xs text-muted mb-2">
+            <p className="text-xs text-text-secondary mb-2">
               Length of each .ts segment file. Shorter segments reduce latency
               but increase file count and overhead.
             </p>
@@ -193,9 +193,9 @@ function PlaygroundForm({
               onChange={(e) =>
                 setHlsField("segment_duration", Number(e.target.value))
               }
-              className="w-full accent-brand"
+              className="w-full accent-accent"
             />
-            <div className="flex justify-between text-xs text-muted mt-0.5">
+            <div className="flex justify-between text-xs text-text-secondary mt-0.5">
               <span>2s</span>
               <span>30s</span>
             </div>
@@ -205,11 +205,11 @@ function PlaygroundForm({
           <div>
             <label
               htmlFor="codec_preset"
-              className="block text-sm font-medium mb-1 text-[#333]"
+              className="block text-sm font-medium mb-1 text-text-primary"
             >
               Codec Preset
             </label>
-            <p className="text-xs text-muted mb-2">
+            <p className="text-xs text-text-secondary mb-2">
               Encoding speed vs compression efficiency. Slower presets produce
               smaller files at the same quality but take longer to encode.
             </p>
@@ -219,7 +219,7 @@ function PlaygroundForm({
               onChange={(e) =>
                 setHlsField("video_codec_preset", e.target.value as CodecPreset)
               }
-              className="w-full p-2.5 border border-pg-border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+              className="w-full p-2.5 border border-border rounded-lg bg-surface-raised text-sm focus:outline-none focus:ring-2 focus:ring-accent-glow focus:border-accent"
             >
               {CODEC_PRESETS.map((p) => (
                 <option key={p} value={p}>
@@ -233,12 +233,12 @@ function PlaygroundForm({
           <div>
             <label
               htmlFor="video_crf"
-              className="block text-sm font-medium mb-1 text-[#333]"
+              className="block text-sm font-medium mb-1 text-text-primary"
             >
               CRF Quality:{" "}
-              <span className="text-brand font-semibold">{hls.video_crf}</span>
+              <span className="text-accent font-semibold">{hls.video_crf}</span>
             </label>
-            <p className="text-xs text-muted mb-2">
+            <p className="text-xs text-text-secondary mb-2">
               Constant Rate Factor — lower values mean better quality and larger
               files. 18-28 is the typical range; 23 is the x264 default.
             </p>
@@ -252,9 +252,9 @@ function PlaygroundForm({
               onChange={(e) =>
                 setHlsField("video_crf", Number(e.target.value))
               }
-              className="w-full accent-brand"
+              className="w-full accent-accent"
             />
-            <div className="flex justify-between text-xs text-muted mt-0.5">
+            <div className="flex justify-between text-xs text-text-secondary mt-0.5">
               <span>0 (best)</span>
               <span>51 (smallest)</span>
             </div>
@@ -264,11 +264,11 @@ function PlaygroundForm({
           <div>
             <label
               htmlFor="video_profile"
-              className="block text-sm font-medium mb-1 text-[#333]"
+              className="block text-sm font-medium mb-1 text-text-primary"
             >
               Video Profile
             </label>
-            <p className="text-xs text-muted mb-2">
+            <p className="text-xs text-text-secondary mb-2">
               H.264 feature set. &quot;Baseline&quot; for maximum device
               compatibility; &quot;Main&quot; is a good balance; &quot;High&quot;
               enables advanced features for better compression.
@@ -282,7 +282,7 @@ function PlaygroundForm({
                   e.target.value as HlsConfigState["video_profile"],
                 )
               }
-              className="w-full p-2.5 border border-pg-border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+              className="w-full p-2.5 border border-border rounded-lg bg-surface-raised text-sm focus:outline-none focus:ring-2 focus:ring-accent-glow focus:border-accent"
             >
               {VIDEO_PROFILES.map((p) => (
                 <option key={p} value={p}>
@@ -306,7 +306,7 @@ function PlaygroundForm({
       <div>
         <label
           htmlFor="preset"
-          className="block text-sm font-semibold mb-1.5 text-[#333]"
+          className="block text-sm font-semibold mb-1.5 text-text-primary"
         >
           Preset
         </label>
@@ -319,7 +319,7 @@ function PlaygroundForm({
               (e.target.value || null) as PlaygroundFormState["preset"],
             )
           }
-          className="w-full p-2.5 border border-pg-border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+          className="w-full p-2.5 border border-border rounded-lg bg-surface-raised text-sm focus:outline-none focus:ring-2 focus:ring-accent-glow focus:border-accent"
         >
           {PRESETS.map((p) => (
             <option key={p.label} value={p.value ?? ""}>
@@ -333,7 +333,7 @@ function PlaygroundForm({
       <div className="flex items-center justify-between">
         <label
           htmlFor="generate_subtitles"
-          className="text-sm font-semibold text-[#333]"
+          className="text-sm font-semibold text-text-primary"
         >
           Generate Subtitles
         </label>
@@ -345,8 +345,8 @@ function PlaygroundForm({
           onClick={() =>
             setField("generate_subtitles", !state.generate_subtitles)
           }
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            state.generate_subtitles ? "bg-brand" : "bg-gray-300"
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+            state.generate_subtitles ? "bg-accent" : "bg-border"
           }`}
         >
           <span
@@ -361,10 +361,10 @@ function PlaygroundForm({
       <div>
         <label
           htmlFor="webhook_url"
-          className="block text-sm font-semibold mb-1.5 text-[#333]"
+          className="block text-sm font-semibold mb-1.5 text-text-primary"
         >
           Webhook URL
-          <span className="font-normal text-muted ml-1">(optional)</span>
+          <span className="font-normal text-text-secondary ml-1">(optional)</span>
         </label>
         <input
           id="webhook_url"
@@ -372,20 +372,20 @@ function PlaygroundForm({
           value={state.webhook_url}
           onChange={(e) => setField("webhook_url", e.target.value)}
           placeholder="https://hooks.example.com/done"
-          className="w-full p-2.5 border border-pg-border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+          className="w-full p-2.5 border border-border rounded-lg bg-surface-raised text-sm focus:outline-none focus:ring-2 focus:ring-accent-glow focus:border-accent"
         />
       </div>
 
       {/* Submit Test Job */}
-      <div className="pt-2 border-t border-pg-border">
+      <div className="pt-2 border-t border-border">
         <button
           type="button"
           onClick={onSubmit}
           disabled={!canSubmit}
-          className={`w-full py-2.5 rounded text-sm font-semibold transition-colors cursor-pointer ${
+          className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
             canSubmit
-              ? "bg-brand text-white hover:bg-brand/90"
-              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              ? "bg-accent text-white hover:bg-accent-hover"
+              : "bg-border text-text-tertiary cursor-not-allowed"
           }`}
         >
           {submitting ? "Submitting..." : "Submit Test Job"}

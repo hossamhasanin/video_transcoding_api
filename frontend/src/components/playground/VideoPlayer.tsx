@@ -115,7 +115,7 @@ function VideoPlayer({
                 onClick={() => handleLevelChange(-1)}
                 className={`w-full text-left px-3 py-1.5 text-xs rounded transition-colors cursor-pointer ${
                   currentLevel === -1
-                    ? "text-brand font-semibold bg-white/10"
+                    ? "text-accent font-semibold bg-white/10"
                     : "text-white hover:bg-white/10"
                 }`}
               >
@@ -128,7 +128,7 @@ function VideoPlayer({
                   onClick={() => handleLevelChange(index)}
                   className={`w-full text-left px-3 py-1.5 text-xs rounded transition-colors cursor-pointer ${
                     currentLevel === index
-                      ? "text-brand font-semibold bg-white/10"
+                      ? "text-accent font-semibold bg-white/10"
                       : "text-white hover:bg-white/10"
                   }`}
                 >

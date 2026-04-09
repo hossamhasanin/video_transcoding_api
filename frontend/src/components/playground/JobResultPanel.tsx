@@ -76,16 +76,16 @@ function JobResultPanel({
     <div className="space-y-4">
       {/* Status */}
       <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-[#333]">Status:</span>
+        <span className="text-sm font-medium text-text-primary">Status:</span>
         <StatusBadge status={job.status} />
         {polling && (
-          <span className="text-xs text-muted">Checking status...</span>
+          <span className="text-xs text-text-secondary">Checking status...</span>
         )}
       </div>
 
       {/* Error message */}
       {isFailed && job.error_message && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
           {job.error_message}
         </div>
       )}
@@ -103,16 +103,16 @@ function JobResultPanel({
       {isCompleted && (
         <div className="flex flex-wrap gap-2">
           {job.processing_duration_seconds !== null && (
-            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+            <span className="px-2 py-1 text-xs bg-accent-soft text-text-secondary rounded-lg">
               Duration: {formatDuration(job.processing_duration_seconds)}
             </span>
           )}
           {job.output_size_bytes !== null && (
-            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+            <span className="px-2 py-1 text-xs bg-accent-soft text-text-secondary rounded-lg">
               Size: {formatBytes(job.output_size_bytes)}
             </span>
           )}
-          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+          <span className="px-2 py-1 text-xs bg-accent-soft text-text-secondary rounded-lg">
             Format: {job.output_format.toUpperCase()}
           </span>
         </div>

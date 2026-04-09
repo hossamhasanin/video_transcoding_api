@@ -34,7 +34,7 @@ function ApiFlowPanel({ steps, activeStep }: ApiFlowPanelProps): React.ReactElem
     <div className="flex flex-col h-full">
       {/* Info banner */}
       <div className="px-4 py-2 bg-blue-50 border-b border-blue-200">
-        <p className="text-[10px] text-blue-700 leading-snug">
+        <p className="text-[10px] text-blue-600 leading-snug">
           This shows the production API flow. The playground handles some steps internally for convenience.
         </p>
       </div>
@@ -49,11 +49,11 @@ function ApiFlowPanel({ steps, activeStep }: ApiFlowPanelProps): React.ReactElem
       </div>
 
       {/* Copy all button */}
-      <div className="px-4 py-2.5 border-t border-pg-border bg-pg-panel-bg">
+      <div className="px-4 py-2.5 border-t border-border bg-surface-raised">
         <button
           type="button"
           onClick={handleCopyAll}
-          className="w-full px-3 py-1.5 text-xs font-medium rounded border border-pg-border bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+          className="w-full px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-surface-raised hover:bg-accent-soft transition-colors cursor-pointer"
         >
           {copiedAll ? "All cURL Commands Copied!" : "Copy All cURL Commands"}
         </button>

@@ -27,16 +27,16 @@ function Login(): React.ReactElement {
   }
 
   return (
-    <div className="flex justify-center items-center min-h-[80vh]">
-      <div className="bg-white p-10 rounded-xl shadow-auth-card w-full max-w-auth">
-        <h1 className="m-0 mb-2 text-[28px] text-sidebar">Welcome Back</h1>
-        <p className="text-[#666] mb-6 text-[15px]">Sign in to your TranscodeFlow account</p>
+    <div className="flex justify-center items-center min-h-[80vh] bg-gradient-to-b from-surface to-white">
+      <div className="bg-surface-raised p-10 rounded-2xl shadow-auth-card w-full max-w-auth">
+        <h1 className="m-0 mb-2 text-text-primary text-2xl font-bold">Welcome Back</h1>
+        <p className="text-text-secondary mb-6 text-[15px]">Sign in to your TranscodeFlow account</p>
 
-        {error && <div className="bg-danger-bg text-danger-text px-4 py-3 rounded-md mb-5 text-sm">{error}</div>}
+        {error && <div className="bg-danger-bg text-danger-text px-4 py-3 rounded-lg mb-5 text-sm">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-5">
-            <label htmlFor="email" className="block mb-1.5 font-medium text-sm text-[#444]">Email</label>
+            <label htmlFor="email" className="block mb-1.5 font-medium text-sm text-text-primary">Email</label>
             <input
               id="email"
               type="email"
@@ -45,12 +45,12 @@ function Login(): React.ReactElement {
               placeholder="you@example.com"
               required
               autoFocus
-              className="w-full px-3.5 py-2.5 border border-[#ddd] rounded-md text-[15px] transition-colors focus:outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/10"
+              className="w-full px-3.5 py-2.5 border border-border rounded-lg text-[15px] transition-colors focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-glow"
             />
           </div>
 
           <div className="mb-5">
-            <label htmlFor="password" className="block mb-1.5 font-medium text-sm text-[#444]">Password</label>
+            <label htmlFor="password" className="block mb-1.5 font-medium text-sm text-text-primary">Password</label>
             <input
               id="password"
               type="password"
@@ -58,21 +58,21 @@ function Login(): React.ReactElement {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Your password"
               required
-              className="w-full px-3.5 py-2.5 border border-[#ddd] rounded-md text-[15px] transition-colors focus:outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/10"
+              className="w-full px-3.5 py-2.5 border border-border rounded-lg text-[15px] transition-colors focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-glow"
             />
           </div>
 
           <div className="text-right mb-5">
-            <Link to="/forgot-password" className="text-brand no-underline font-medium hover:underline">Forgot password?</Link>
+            <Link to="/forgot-password" className="text-accent no-underline font-medium hover:text-accent-hover">Forgot password?</Link>
           </div>
 
-          <button type="submit" className="w-full py-3 bg-brand text-white border-none rounded-md text-base font-medium cursor-pointer transition-colors hover:bg-brand-dark disabled:bg-muted disabled:cursor-not-allowed" disabled={loading}>
+          <button type="submit" className="w-full py-3 bg-accent hover:bg-accent-hover text-white border-none rounded-lg text-base font-medium cursor-pointer transition-colors disabled:bg-muted disabled:cursor-not-allowed" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
-        <p className="text-center mt-6 text-[#666] text-sm">
-          Don&apos;t have an account? <Link to="/register" className="text-brand no-underline font-medium hover:underline">Create one</Link>
+        <p className="text-center mt-6 text-text-secondary text-sm">
+          Don&apos;t have an account? <Link to="/register" className="text-accent no-underline font-medium hover:text-accent-hover">Create one</Link>
         </p>
       </div>
     </div>

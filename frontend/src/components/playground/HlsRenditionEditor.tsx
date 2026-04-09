@@ -84,10 +84,10 @@ function HlsRenditionEditor({
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-semibold text-[#333]">
+      <label className="block text-sm font-semibold text-text-primary">
         Renditions
       </label>
-      <p className="text-xs text-muted -mt-1 mb-2">
+      <p className="text-xs text-text-secondary -mt-1 mb-2">
         Each rendition defines an output quality level (resolution + bitrate).
         Players automatically switch between them based on viewer bandwidth.
       </p>
@@ -103,7 +103,7 @@ function HlsRenditionEditor({
             return (
               <div
                 key={r.id}
-                className="grid grid-cols-[1fr_60px_60px_80px_80px_auto] gap-2 items-start text-xs border border-pg-border rounded p-2 bg-white"
+                className="grid grid-cols-[1fr_60px_60px_80px_80px_auto] gap-2 items-start text-xs border border-border rounded-lg p-2 bg-surface-raised"
               >
                 <div>
                   <input
@@ -114,13 +114,13 @@ function HlsRenditionEditor({
                     }
                     className={`w-full p-1 border rounded text-xs ${
                       duplicateName || invalidName
-                        ? "border-danger"
-                        : "border-pg-border"
+                        ? "border-red-400"
+                        : "border-border"
                     }`}
                     placeholder="name"
                   />
                   {(duplicateName || invalidName) && (
-                    <span className="text-danger text-[10px]">
+                    <span className="text-red-600 text-[10px]">
                       {duplicateName
                         ? "Duplicate name"
                         : "Invalid characters"}
@@ -133,7 +133,7 @@ function HlsRenditionEditor({
                   onChange={(e) =>
                     handleFieldChange(r.id, "width", e.target.value)
                   }
-                  className="w-full p-1 border border-pg-border rounded text-xs"
+                  className="w-full p-1 border border-border rounded text-xs"
                   placeholder="W"
                   min={1}
                 />
@@ -143,7 +143,7 @@ function HlsRenditionEditor({
                   onChange={(e) =>
                     handleFieldChange(r.id, "height", e.target.value)
                   }
-                  className="w-full p-1 border border-pg-border rounded text-xs"
+                  className="w-full p-1 border border-border rounded text-xs"
                   placeholder="H"
                   min={1}
                 />
@@ -153,7 +153,7 @@ function HlsRenditionEditor({
                   onChange={(e) =>
                     handleFieldChange(r.id, "video_bitrate", e.target.value)
                   }
-                  className="w-full p-1 border border-pg-border rounded text-xs"
+                  className="w-full p-1 border border-border rounded text-xs"
                   placeholder="v-bitrate"
                 />
                 <input
@@ -162,13 +162,13 @@ function HlsRenditionEditor({
                   onChange={(e) =>
                     handleFieldChange(r.id, "audio_bitrate", e.target.value)
                   }
-                  className="w-full p-1 border border-pg-border rounded text-xs"
+                  className="w-full p-1 border border-border rounded text-xs"
                   placeholder="a-bitrate"
                 />
                 <button
                   type="button"
                   onClick={() => onRemove(r.id)}
-                  className="p-1 text-danger hover:bg-danger-bg rounded text-xs font-bold"
+                  className="p-1 text-red-600 hover:bg-red-50 rounded text-xs font-bold cursor-pointer"
                   title="Remove rendition"
                 >
                   &times;
@@ -187,12 +187,12 @@ function HlsRenditionEditor({
             value={nextName}
             onChange={(e) => setNextName(e.target.value)}
             className={`w-full p-1 border rounded text-xs ${
-              nameError ? "border-danger" : "border-pg-border"
+              nameError ? "border-red-400" : "border-border"
             }`}
             placeholder="720p"
           />
           {nameError && (
-            <span className="text-danger text-[10px]">{nameError}</span>
+            <span className="text-red-600 text-[10px]">{nameError}</span>
           )}
         </div>
         <input
@@ -200,7 +200,7 @@ function HlsRenditionEditor({
           value={nextWidth}
           onChange={(e) => setNextWidth(e.target.value)}
           className={`w-full p-1 border rounded text-xs ${
-            widthError ? "border-danger" : "border-pg-border"
+            widthError ? "border-red-400" : "border-border"
           }`}
           placeholder="W"
           min={1}
@@ -210,7 +210,7 @@ function HlsRenditionEditor({
           value={nextHeight}
           onChange={(e) => setNextHeight(e.target.value)}
           className={`w-full p-1 border rounded text-xs ${
-            heightError ? "border-danger" : "border-pg-border"
+            heightError ? "border-red-400" : "border-border"
           }`}
           placeholder="H"
           min={1}
@@ -219,21 +219,21 @@ function HlsRenditionEditor({
           type="text"
           value={nextVideoBitrate}
           onChange={(e) => setNextVideoBitrate(e.target.value)}
-          className="w-full p-1 border border-pg-border rounded text-xs"
+          className="w-full p-1 border border-border rounded text-xs"
           placeholder="2500k"
         />
         <input
           type="text"
           value={nextAudioBitrate}
           onChange={(e) => setNextAudioBitrate(e.target.value)}
-          className="w-full p-1 border border-pg-border rounded text-xs"
+          className="w-full p-1 border border-border rounded text-xs"
           placeholder="128k"
         />
         <button
           type="button"
           onClick={handleAdd}
           disabled={!canAdd}
-          className="p-1 text-brand hover:text-brand-dark disabled:text-muted disabled:cursor-not-allowed text-lg font-bold"
+          className="p-1 text-accent hover:text-accent-hover disabled:text-text-tertiary disabled:cursor-not-allowed text-lg font-bold cursor-pointer"
           title="Add rendition"
         >
           +
