@@ -1,5 +1,6 @@
 import React from 'react'
 import ApiKeyManager from '../components/ApiKeyManager'
+import JobHistory from '../components/JobHistory'
 import { useUsageStats } from '../hooks/useUsageStats'
 import { getErrorMessage } from '../utils/http'
 
@@ -47,6 +48,10 @@ function Dashboard(): React.ReactElement {
 
       <h2>API Keys</h2>
       <ApiKeyManager />
+
+      <div className="mt-10">
+        <JobHistory />
+      </div>
     </div>
   )
 }
