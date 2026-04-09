@@ -1,0 +1,129 @@
+<h2>Expanded Row Detail — Confirm Layout</h2>
+<p class="subtitle">When a user clicks a job row, it expands to show these details inline</p>
+
+<div class="mockup">
+  <div class="mockup-header">Expanded Row Preview</div>
+  <div class="mockup-body">
+    <div style="background:#f4f7f6;padding:16px;border-radius:6px;">
+      <div style="background:white;border-radius:6px;overflow:hidden;border:1px solid #e0e0e0;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="background:#f8f9fa;border-bottom:2px solid #dee2e6;">
+              <th style="padding:8px 12px;text-align:left;width:24px;"></th>
+              <th style="padding:8px 12px;text-align:left;">ID</th>
+              <th style="padding:8px 12px;text-align:left;">Status</th>
+              <th style="padding:8px 12px;text-align:left;">Preset</th>
+              <th style="padding:8px 12px;text-align:left;">Format</th>
+              <th style="padding:8px 12px;text-align:left;">Created</th>
+              <th style="padding:8px 12px;text-align:left;">Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Expanded row -->
+            <tr style="border-bottom:1px solid #eee;background:#f8f9fa;cursor:pointer;">
+              <td style="padding:6px 12px;color:#6c757d;">▼</td>
+              <td style="padding:6px 12px;font-family:monospace;font-size:11px;">a3f8...</td>
+              <td style="padding:6px 12px;"><span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:10px;font-size:11px;">completed</span></td>
+              <td style="padding:6px 12px;">youtube</td>
+              <td style="padding:6px 12px;">mp4</td>
+              <td style="padding:6px 12px;color:#6c757d;">2 min ago</td>
+              <td style="padding:6px 12px;">45s</td>
+            </tr>
+            <!-- Detail panel -->
+            <tr style="border-bottom:1px solid #eee;">
+              <td colspan="7" style="padding:0;">
+                <div style="background:#f0f4f8;padding:12px 16px;border-left:3px solid #007bff;">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+                    <div>
+                      <span style="color:#6c757d;font-weight:500;">Source URL:</span><br>
+                      <span style="font-family:monospace;font-size:11px;word-break:break-all;">https://storage.example.com/uploads/video-abc123.mp4</span>
+                    </div>
+                    <div>
+                      <span style="color:#6c757d;font-weight:500;">Output URL:</span><br>
+                      <span style="font-family:monospace;font-size:11px;word-break:break-all;color:#007bff;text-decoration:underline;">https://storage.example.com/outputs/out-abc123.mp4</span>
+                    </div>
+                    <div>
+                      <span style="color:#6c757d;font-weight:500;">File Size:</span><br>
+                      <span>24.3 MB → 8.1 MB</span>
+                    </div>
+                    <div>
+                      <span style="color:#6c757d;font-weight:500;">Processing Time:</span><br>
+                      <span>45 seconds</span>
+                    </div>
+                    <div>
+                      <span style="color:#6c757d;font-weight:500;">Error:</span><br>
+                      <span style="color:#28a745;">—</span>
+                    </div>
+                    <div>
+                      <span style="color:#6c757d;font-weight:500;">Subtitle:</span><br>
+                      <span>Not requested</span>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <!-- Collapsed rows -->
+            <tr style="border-bottom:1px solid #eee;cursor:pointer;">
+              <td style="padding:6px 12px;color:#6c757d;">▶</td>
+              <td style="padding:6px 12px;font-family:monospace;font-size:11px;">b7c2...</td>
+              <td style="padding:6px 12px;"><span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:10px;font-size:11px;">processing</span></td>
+              <td style="padding:6px 12px;">tiktok</td>
+              <td style="padding:6px 12px;">mp4</td>
+              <td style="padding:6px 12px;color:#6c757d;">5 min ago</td>
+              <td style="padding:6px 12px;">—</td>
+            </tr>
+            <!-- Failed row expanded -->
+            <tr style="border-bottom:1px solid #eee;background:#f8f9fa;cursor:pointer;">
+              <td style="padding:6px 12px;color:#6c757d;">▼</td>
+              <td style="padding:6px 12px;font-family:monospace;font-size:11px;">d1e9...</td>
+              <td style="padding:6px 12px;"><span style="background:#f8d7da;color:#721c24;padding:2px 8px;border-radius:10px;font-size:11px;">failed</span></td>
+              <td style="padding:6px 12px;">—</td>
+              <td style="padding:6px 12px;">hls</td>
+              <td style="padding:6px 12px;color:#6c757d;">1 hr ago</td>
+              <td style="padding:6px 12px;">12s</td>
+            </tr>
+            <tr style="border-bottom:1px solid #eee;">
+              <td colspan="7" style="padding:0;">
+                <div style="background:#fff5f5;padding:12px 16px;border-left:3px solid #dc3545;">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+                    <div>
+                      <span style="color:#6c757d;font-weight:500;">Source URL:</span><br>
+                      <span style="font-family:monospace;font-size:11px;word-break:break-all;">https://storage.example.com/uploads/video-xyz.mp4</span>
+                    </div>
+                    <div>
+                      <span style="color:#6c757d;font-weight:500;">Output URL:</span><br>
+                      <span style="color:#6c757d;">—</span>
+                    </div>
+                    <div>
+                      <span style="color:#6c757d;font-weight:500;">File Size:</span><br>
+                      <span>156.2 MB → —</span>
+                    </div>
+                    <div>
+                      <span style="color:#6c757d;font-weight:500;">Processing Time:</span><br>
+                      <span>12 seconds</span>
+                    </div>
+                    <div style="grid-column:1/3;">
+                      <span style="color:#6c757d;font-weight:500;">Error:</span><br>
+                      <span style="color:#dc3545;font-family:monospace;font-size:11px;">FFmpeg exited with code 1: Invalid data found when processing input</span>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>Key Design Details</h3>
+  <ul>
+    <li><strong>Expand arrow</strong> (▶/▼) in first column — clickable entire row</li>
+    <li><strong>Blue left border</strong> for completed/processing, <strong>red left border</strong> for failed</li>
+    <li><strong>2-column grid</strong> inside detail panel for scannable layout</li>
+    <li><strong>Error field</strong> spans full width when present, highlighted in red</li>
+    <li>Only one row expanded at a time</li>
+  </ul>
+</div>

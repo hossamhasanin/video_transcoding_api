@@ -1,0 +1,164 @@
+<h2>Job History Table — Layout Options</h2>
+<p class="subtitle">Pick the layout that feels right for the dashboard job table</p>
+
+<div class="cards">
+  <!-- Option A: Filter bar above table -->
+  <div class="card" data-choice="filter-bar" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#f4f7f6;padding:16px;border-radius:6px;">
+        <!-- Stats cards row -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <div style="flex:1;background:white;border-radius:6px;padding:12px;text-align:center;font-size:11px;color:#6c757d;">Total Jobs<br><strong style="font-size:18px;color:#1a1a1a;">142</strong></div>
+          <div style="flex:1;background:white;border-radius:6px;padding:12px;text-align:center;font-size:11px;color:#6c757d;">Completed<br><strong style="font-size:18px;color:#28a745;">128</strong></div>
+          <div style="flex:1;background:white;border-radius:6px;padding:12px;text-align:center;font-size:11px;color:#6c757d;">Failed<br><strong style="font-size:18px;color:#dc3545;">8</strong></div>
+        </div>
+        <!-- Filter bar -->
+        <div style="background:white;border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;gap:8px;align-items:center;border:1px solid #e0e0e0;">
+          <span style="font-size:11px;color:#6c757d;font-weight:600;">Filters:</span>
+          <select style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;background:white;"><option>All Status</option><option>Pending</option><option>Completed</option><option>Failed</option></select>
+          <select style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;background:white;"><option>All Formats</option><option>MP4</option><option>HLS</option></select>
+          <select style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;background:white;"><option>All Presets</option><option>YouTube</option><option>TikTok</option></select>
+          <input type="text" placeholder="Date range" style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;width:120px;">
+          <button style="margin-left:auto;padding:4px 10px;background:#dc3545;color:white;border:none;border-radius:4px;font-size:11px;">Clear</button>
+        </div>
+        <!-- Table -->
+        <div style="background:white;border-radius:6px;overflow:hidden;border:1px solid #e0e0e0;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:#f8f9fa;border-bottom:2px solid #dee2e6;">
+                <th style="padding:8px 12px;text-align:left;">ID</th>
+                <th style="padding:8px 12px;text-align:left;">Status</th>
+                <th style="padding:8px 12px;text-align:left;">Preset</th>
+                <th style="padding:8px 12px;text-align:left;">Format</th>
+                <th style="padding:8px 12px;text-align:left;">Created</th>
+                <th style="padding:8px 12px;text-align:left;">Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #eee;"><td style="padding:6px 12px;font-family:monospace;font-size:11px;">a3f8...</td><td style="padding:6px 12px;"><span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:10px;font-size:11px;">completed</span></td><td style="padding:6px 12px;">youtube</td><td style="padding:6px 12px;">mp4</td><td style="padding:6px 12px;color:#6c757d;">2 min ago</td><td style="padding:6px 12px;">45s</td></tr>
+              <tr style="border-bottom:1px solid #eee;"><td style="padding:6px 12px;font-family:monospace;font-size:11px;">b7c2...</td><td style="padding:6px 12px;"><span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:10px;font-size:11px;">processing</span></td><td style="padding:6px 12px;">tiktok</td><td style="padding:6px 12px;">mp4</td><td style="padding:6px 12px;color:#6c757d;">5 min ago</td><td style="padding:6px 12px;">—</td></tr>
+              <tr style="border-bottom:1px solid #eee;"><td style="padding:6px 12px;font-family:monospace;font-size:11px;">d1e9...</td><td style="padding:6px 12px;"><span style="background:#f8d7da;color:#721c24;padding:2px 8px;border-radius:10px;font-size:11px;">failed</span></td><td style="padding:6px 12px;">—</td><td style="padding:6px 12px;">hls</td><td style="padding:6px 12px;color:#6c757d;">1 hr ago</td><td style="padding:6px 12px;">12s</td></tr>
+            </tbody>
+          </table>
+          <!-- Pagination -->
+          <div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #eee;font-size:11px;color:#6c757d;">
+            <span>Showing 1-50 of 142</span>
+            <div style="display:flex;gap:4px;">
+              <button style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;background:white;font-size:11px;">Prev</button>
+              <button style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;background:#007bff;color:white;font-size:11px;">1</button>
+              <button style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;background:white;font-size:11px;">2</button>
+              <button style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;background:white;font-size:11px;">3</button>
+              <button style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;background:white;font-size:11px;">Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Filter Bar Above Table</h3>
+      <p>Inline dropdown selects in a horizontal bar. Always visible, easy to scan. Fits the existing dashboard card style.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Sidebar filter panel -->
+  <div class="card" data-choice="filter-sidebar" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#f4f7f6;padding:16px;border-radius:6px;display:flex;gap:8px;">
+        <!-- Sidebar filters -->
+        <div style="width:140px;background:white;border-radius:6px;padding:12px;border:1px solid #e0e0e0;flex-shrink:0;">
+          <div style="font-size:11px;font-weight:600;margin-bottom:8px;color:#1a1a1a;">Filters</div>
+          <div style="margin-bottom:8px;">
+            <div style="font-size:10px;color:#6c757d;margin-bottom:3px;">Status</div>
+            <div style="display:flex;flex-direction:column;gap:2px;font-size:11px;">
+              <label><input type="checkbox" checked> All</label>
+              <label><input type="checkbox"> Pending</label>
+              <label><input type="checkbox"> Processing</label>
+              <label><input type="checkbox"> Completed</label>
+              <label><input type="checkbox"> Failed</label>
+            </div>
+          </div>
+          <div style="margin-bottom:8px;">
+            <div style="font-size:10px;color:#6c757d;margin-bottom:3px;">Format</div>
+            <select style="width:100%;padding:3px;border:1px solid #ccc;border-radius:3px;font-size:11px;"><option>All</option></select>
+          </div>
+          <div style="margin-bottom:8px;">
+            <div style="font-size:10px;color:#6c757d;margin-bottom:3px;">Preset</div>
+            <select style="width:100%;padding:3px;border:1px solid #ccc;border-radius:3px;font-size:11px;"><option>All</option></select>
+          </div>
+          <div style="margin-bottom:8px;">
+            <div style="font-size:10px;color:#6c757d;margin-bottom:3px;">Date</div>
+            <input type="text" placeholder="From" style="width:100%;padding:3px;border:1px solid #ccc;border-radius:3px;font-size:11px;margin-bottom:2px;">
+            <input type="text" placeholder="To" style="width:100%;padding:3px;border:1px solid #ccc;border-radius:3px;font-size:11px;">
+          </div>
+        </div>
+        <!-- Table -->
+        <div style="flex:1;background:white;border-radius:6px;overflow:hidden;border:1px solid #e0e0e0;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:#f8f9fa;border-bottom:2px solid #dee2e6;">
+                <th style="padding:8px 12px;text-align:left;">ID</th>
+                <th style="padding:8px 12px;text-align:left;">Status</th>
+                <th style="padding:8px 12px;text-align:left;">Preset</th>
+                <th style="padding:8px 12px;text-align:left;">Format</th>
+                <th style="padding:8px 12px;text-align:left;">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #eee;"><td style="padding:6px 12px;font-family:monospace;font-size:11px;">a3f8...</td><td style="padding:6px 12px;"><span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:10px;font-size:11px;">completed</span></td><td style="padding:6px 12px;">youtube</td><td style="padding:6px 12px;">mp4</td><td style="padding:6px 12px;color:#6c757d;">2 min ago</td></tr>
+              <tr style="border-bottom:1px solid #eee;"><td style="padding:6px 12px;font-family:monospace;font-size:11px;">b7c2...</td><td style="padding:6px 12px;"><span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:10px;font-size:11px;">processing</span></td><td style="padding:6px 12px;">tiktok</td><td style="padding:6px 12px;">mp4</td><td style="padding:6px 12px;color:#6c757d;">5 min ago</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Sidebar Filter Panel</h3>
+      <p>Filters in a left sidebar panel with checkboxes and inputs. More space for options but takes horizontal room. Less common for dashboards.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Compact filter pills -->
+  <div class="card" data-choice="filter-pills" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#f4f7f6;padding:16px;border-radius:6px;">
+        <!-- Filter pills -->
+        <div style="margin-bottom:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:11px;color:#6c757d;font-weight:600;">Status:</span>
+          <button style="padding:3px 10px;background:#007bff;color:white;border:none;border-radius:14px;font-size:11px;">All</button>
+          <button style="padding:3px 10px;background:white;color:#333;border:1px solid #ccc;border-radius:14px;font-size:11px;">Pending</button>
+          <button style="padding:3px 10px;background:white;color:#333;border:1px solid #ccc;border-radius:14px;font-size:11px;">Completed</button>
+          <button style="padding:3px 10px;background:white;color:#333;border:1px solid #ccc;border-radius:14px;font-size:11px;">Failed</button>
+          <button style="padding:3px 10px;background:white;color:#333;border:1px solid #ccc;border-radius:14px;font-size:11px;">Cancelled</button>
+          <span style="margin-left:8px;font-size:11px;color:#6c757d;font-weight:600;">Format:</span>
+          <button style="padding:3px 10px;background:#007bff;color:white;border:none;border-radius:14px;font-size:11px;">All</button>
+          <button style="padding:3px 10px;background:white;color:#333;border:1px solid #ccc;border-radius:14px;font-size:11px;">MP4</button>
+          <button style="padding:3px 10px;background:white;color:#333;border:1px solid #ccc;border-radius:14px;font-size:11px;">HLS</button>
+        </div>
+        <!-- Table -->
+        <div style="background:white;border-radius:6px;overflow:hidden;border:1px solid #e0e0e0;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:#f8f9fa;border-bottom:2px solid #dee2e6;">
+                <th style="padding:8px 12px;text-align:left;">ID</th>
+                <th style="padding:8px 12px;text-align:left;">Status</th>
+                <th style="padding:8px 12px;text-align:left;">Preset</th>
+                <th style="padding:8px 12px;text-align:left;">Format</th>
+                <th style="padding:8px 12px;text-align:left;">Created</th>
+                <th style="padding:8px 12px;text-align:left;">Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #eee;"><td style="padding:6px 12px;font-family:monospace;font-size:11px;">a3f8...</td><td style="padding:6px 12px;"><span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:10px;font-size:11px;">completed</span></td><td style="padding:6px 12px;">youtube</td><td style="padding:6px 12px;">mp4</td><td style="padding:6px 12px;color:#6c757d;">2 min ago</td><td style="padding:6px 12px;">45s</td></tr>
+              <tr style="border-bottom:1px solid #eee;"><td style="padding:6px 12px;font-family:monospace;font-size:11px;">b7c2...</td><td style="padding:6px 12px;"><span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:10px;font-size:11px;">processing</span></td><td style="padding:6px 12px;">tiktok</td><td style="padding:6px 12px;">mp4</td><td style="padding:6px 12px;color:#6c757d;">5 min ago</td><td style="padding:6px 12px;">—</td></tr>
+              <tr style="border-bottom:1px solid #eee;"><td style="padding:6px 12px;font-family:monospace;font-size:11px;">d1e9...</td><td style="padding:6px 12px;"><span style="background:#f8d7da;color:#721c24;padding:2px 8px;border-radius:10px;font-size:11px;">failed</span></td><td style="padding:6px 12px;">—</td><td style="padding:6px 12px;">hls</td><td style="padding:6px 12px;color:#6c757d;">1 hr ago</td><td style="padding:6px 12px;">12s</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Filter Pills / Toggle Buttons</h3>
+      <p>Pill-shaped toggle buttons for status and format. Very scannable and interactive. Date range via a small popover. Modern feel.</p>
+    </div>
+  </div>
+</div>
