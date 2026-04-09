@@ -37,7 +37,9 @@ class Job(Base):
 
     status = Column(
         String(50), nullable=False, default="pending", index=True
-    )  # pending, processing, completed, failed
+    )  # pending, processing, transcoding, uploading, completed, failed, cancelled
+    celery_task_id = Column(String(255), nullable=True)
+    subtitle_task_id = Column(String(255), nullable=True)
     source_url = Column(String(2048), nullable=False)
     output_url = Column(String(2048), nullable=True)
     output_zip_url = Column(String(2048), nullable=True)

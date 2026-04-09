@@ -102,6 +102,15 @@ class JobStatusResponse(JobResponse):
     eta_seconds: Optional[float] = None  # estimated seconds remaining
 
 
+class JobCancelResponse(BaseModel):
+    id: UUID4
+    status: str
+    message: str
+
+    class Config:
+        from_attributes = True
+
+
 class PaginatedJobResponse(BaseModel):
     items: List[JobResponse]
     total: int

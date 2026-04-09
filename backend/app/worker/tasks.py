@@ -30,6 +30,16 @@ def _get_dir_size(path: str) -> int:
     return total
 
 
+def _check_job_cancelled(job_id: str) -> bool:
+    """Check if a job has been marked as cancelled in the database."""
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        return job is not None and job.status == "cancelled"
+    finally:
+        db.close()
+
+
 def _zip_directory(directory_path: str, zip_path: str) -> str:
     """Create a zip archive of the given directory."""
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -52,6 +62,11 @@ def transcode_video_task(self, job_id: str):
         job = db.query(Job).filter(Job.id == job_id).first()
         if not job:
             return f"Job {job_id} not found"
+
+        # Cooperative cancellation check — job may have been cancelled while queued
+        if job.status == "cancelled":
+            print(f"Job {job_id} was cancelled before processing started")
+            return f"Job {job_id} cancelled"
 
         job.status = "processing"
 
@@ -154,6 +169,12 @@ def transcode_video_task(self, job_id: str):
             print(
                 f"Starting transcode for job {job_id} with format {output_format} and preset {preset}"
             )
+
+            # Cooperative cancellation check — job may have been cancelled during download
+            if _check_job_cancelled(job_id):
+                print(f"Job {job_id} cancelled after download, aborting transcode")
+                return f"Job {job_id} cancelled"
+
             publish_event(job_id, "status_change", {"status": "transcoding"})
 
             def _progress_callback(progress: int, eta_seconds: float | None):
@@ -178,6 +199,11 @@ def transcode_video_task(self, job_id: str):
             )
 
             print(f"Uploading transcoded video to storage")
+
+            # Cooperative cancellation check — job may have been cancelled during transcode
+            if _check_job_cancelled(job_id):
+                print(f"Job {job_id} cancelled after transcode, skipping upload")
+                return f"Job {job_id} cancelled"
             publish_event(job_id, "status_change", {"status": "uploading"})
             bucket_name = settings.R2_BUCKET_NAME
             base_s3_prefix = f"transcoded/{job_id}"
@@ -282,7 +308,16 @@ def transcode_video_task(self, job_id: str):
 
         if generate_subtitles and audio_extracted:
             print(f"Queueing ML task for job {job_id}")
-            generate_subtitles_task.delay(job_id, audio_s3_key)
+            subtitle_result = generate_subtitles_task.delay(job_id, audio_s3_key)
+            # Store subtitle task ID for cancellation
+            db_sub = SessionLocal()
+            try:
+                job_sub = db_sub.query(Job).filter(Job.id == job_id).first()
+                if job_sub:
+                    job_sub.subtitle_task_id = subtitle_result.id
+                    db_sub.commit()
+            finally:
+                db_sub.close()
             return f"Job {job_id} video completed, queued for subtitles"
         else:
             if webhook_url:
@@ -361,6 +396,11 @@ def generate_subtitles_task(self, job_id: str, audio_s3_key: str):
 
             print(f"Downloading audio from S3: {audio_s3_key}")
             s3.download_file(bucket_name, audio_s3_key, audio_path)
+
+            # Cooperative cancellation check — job may have been cancelled before ML work
+            if _check_job_cancelled(job_id):
+                print(f"Job {job_id} cancelled, skipping subtitle generation")
+                return f"Job {job_id} cancelled"
 
             print(f"Generating subtitles for job {job_id}")
             publish_event(job_id, "status_change", {"status": "generating_subtitles"})

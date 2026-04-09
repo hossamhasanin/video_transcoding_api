@@ -9,7 +9,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from fastapi.responses import Response, StreamingResponse
-from sqlalchemy import func
+from sqlalchemy import func, update as sql_update
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -24,6 +24,7 @@ from app.schemas.job import (
     JobResponse,
     JobStatusResponse,
     PaginatedJobResponse,
+    JobCancelResponse,
 )
 from app.schemas.webhook import (
     WebhookDeliveryLogResponse,
@@ -35,7 +36,7 @@ from app.api.dependencies import (
     verify_api_key_str,
 )
 from app.core.rate_limit import limiter
-from app.core.redis import get_progress, subscribe_to_job, publish_event
+from app.core.redis import get_progress, subscribe_to_job, publish_event, clear_progress
 from app.core.storage import (
     get_s3_client,
     generate_presigned_download_url,
@@ -107,7 +108,10 @@ def create_job(
     db.refresh(new_job)
 
     # Queue Celery Task
-    transcode_video_task.delay(str(new_job.id))
+    result = transcode_video_task.delay(str(new_job.id))
+    new_job.celery_task_id = result.id
+    db.commit()
+    db.refresh(new_job)
 
     return new_job
 
@@ -287,6 +291,83 @@ def get_job_status(
 
 
 # ---------------------------------------------------------------------------
+# Job cancellation
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{tracking_id}/cancel",
+    response_model=JobCancelResponse,
+    summary="Cancel a transcoding job",
+    description="Cancels a pending or in-progress transcoding job. "
+    "Pending jobs are prevented from running. In-progress jobs are terminated "
+    "via Celery task revocation and cooperative checks. "
+    "Completed, failed, or already cancelled jobs cannot be cancelled.",
+)
+@limiter.limit("10/minute")
+def cancel_job(
+    request: Request,
+    tracking_id: UUID,
+    api_key: ApiKey = Depends(get_current_api_key),
+    db: Session = Depends(get_db),
+):
+    # Verify job exists and belongs to the user
+    job = (
+        db.query(Job)
+        .filter(Job.id == tracking_id, Job.user_id == api_key.user_id)
+        .first()
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Atomic conditional UPDATE — only succeeds if job is in a cancellable state
+    result = db.execute(
+        sql_update(Job)
+        .where(
+            Job.id == tracking_id,
+            Job.status.notin_(["completed", "failed", "cancelled"]),
+        )
+        .values(status="cancelled", updated_at=datetime.now(timezone.utc))
+    )
+    if result.rowcount == 0:
+        db.refresh(job)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Job is in terminal state '{job.status}' and cannot be cancelled.",
+        )
+    db.commit()
+    db.refresh(job)
+
+    # Revoke Celery tasks
+    from app.core.celery_app import celery_app as celery
+
+    if job.celery_task_id:
+        celery.control.revoke(
+            job.celery_task_id, terminate=True, signal="SIGTERM"
+        )
+    if job.subtitle_task_id:
+        celery.control.revoke(
+            job.subtitle_task_id, terminate=True, signal="SIGTERM"
+        )
+
+    # Clean up Redis progress and publish cancellation event
+    clear_progress(str(tracking_id))
+    publish_event(str(tracking_id), "cancelled", {"status": "cancelled"})
+
+    # Fire job.cancelled webhook
+    if job.webhook_url:
+        from app.worker.webhooks import send_webhook_task
+
+        send_webhook_task.delay(str(job.id), "job.cancelled")
+
+    return JobCancelResponse(
+        id=job.id,
+        status=job.status,
+        message=f"Job {tracking_id} cancelled successfully.",
+    )
+
+
+# ---------------------------------------------------------------------------
 # SSE — real-time job event stream
 # ---------------------------------------------------------------------------
 
@@ -296,7 +377,7 @@ def get_job_status(
     summary="Stream job events via SSE",
     description="Real-time Server-Sent Events stream for job progress, status changes, "
     "and completion. Authenticate via x-api-key header or ?api_key= query parameter. "
-    "Event types: progress, status_change, done, error, heartbeat.",
+    "Event types: progress, status_change, done, error, cancelled, heartbeat.",
 )
 async def stream_job_events(
     request: Request,
@@ -319,12 +400,17 @@ async def stream_job_events(
 
     async def _event_generator():
         # If job already in a terminal state, emit and close immediately
-        if job.status in ("completed", "failed"):
+        if job.status in ("completed", "failed", "cancelled"):
             payload = {"status": job.status}
             if job.error_message:
                 payload["error_message"] = job.error_message
+            event_name = {
+                "completed": "done",
+                "failed": "error",
+                "cancelled": "cancelled",
+            }[job.status]
             yield {
-                "event": "done" if job.status == "completed" else "error",
+                "event": event_name,
                 "data": json.dumps(payload),
             }
             return
@@ -360,7 +446,7 @@ async def stream_job_events(
                         "data": json.dumps(data),
                     }
                     # Terminal events close the stream
-                    if event_type in ("done", "error"):
+                    if event_type in ("done", "error", "cancelled"):
                         break
         finally:
             pubsub.unsubscribe()

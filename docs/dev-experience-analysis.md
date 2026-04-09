@@ -69,6 +69,7 @@ done
 **Problem**: Most developers don't have a public URL for every video. The playground has upload (`/playground/upload`) but the real API doesn't.
 **Fix**: Add `POST /api/v1/jobs/upload` — multipart file upload that returns a `source_url` or accepts inline. Alternatively, add presigned upload URLs so devs upload directly to R2.
 
+done
 #### 2. No Job List / History Endpoint
 **Current**: `GET /jobs/{id}` only — must know the exact job ID.
 **Problem**: Devs have no way to list their jobs, filter by status, or see history.
@@ -103,14 +104,17 @@ done
 **Current**: Polling only.
 **Fix**: `GET /api/v1/jobs/{id}/events` — SSE stream that pushes status changes. Much friendlier than asking devs to implement polling loops.
 
+done
 #### 7. No Job Cancellation
 **Current**: Once submitted, a job runs until completion or failure.
 **Fix**: `DELETE /api/v1/jobs/{id}` or `POST /api/v1/jobs/{id}/cancel` — kill a queued or in-progress job.
 
+done
 #### 8. No Signed/Expiring Download URLs
 **Current**: `output_url` is a direct R2 URL — either always public or always private.
 **Fix**: Generate time-limited signed URLs. Add `POST /api/v1/jobs/{id}/download` that returns a temporary signed URL.
 
+done
 #### 9. Webhook Improvements
 **Current**: Fire-and-forget with no visibility.
 **Fix**:

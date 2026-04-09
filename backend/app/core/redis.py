@@ -85,3 +85,9 @@ def subscribe_to_job(job_id: str) -> redis.client.PubSub:
     pubsub = r.pubsub()
     pubsub.subscribe(_events_channel(job_id))
     return pubsub
+
+
+def clear_progress(job_id: str) -> None:
+    """Remove the progress hash for a job (used on cancellation)."""
+    r = get_redis()
+    r.delete(_progress_key(job_id))
