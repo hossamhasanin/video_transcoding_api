@@ -175,7 +175,9 @@ def send_webhook_task(self, job_id: str, event_type: str = "job.completed"):
                 event_type,
                 attempt,
                 status_code=response.status_code,
-                response_body=response.text[: settings.WEBHOOK_RESPONSE_BODY_MAX_LENGTH],
+                response_body=response.text[
+                    : settings.WEBHOOK_RESPONSE_BODY_MAX_LENGTH
+                ],
                 error_message=(
                     None
                     if response.ok
