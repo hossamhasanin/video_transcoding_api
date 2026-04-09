@@ -116,3 +116,10 @@ class PaginatedJobResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class PaginatedDashboardJobResponse(BaseModel):
+    items: List[JobResponse]
+    total: int
+    limit: int
+    offset: int
