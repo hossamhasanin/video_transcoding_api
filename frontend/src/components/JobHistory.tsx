@@ -241,20 +241,24 @@ function JobHistory(): ReactNode {
           {PRESET_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
 
-        <input
-          type="date"
-          value={filters.created_after ? filters.created_after.split('T')[0] : ''}
-          onChange={(e) => updateFilter('created_after', e.target.value ? `${e.target.value}T00:00:00` : '')}
-          placeholder="From"
-          className="p-1 px-2 border border-[#ccc] rounded text-xs w-[130px]"
-        />
-        <input
-          type="date"
-          value={filters.created_before ? filters.created_before.split('T')[0] : ''}
-          onChange={(e) => updateFilter('created_before', e.target.value ? `${e.target.value}T23:59:59` : '')}
-          placeholder="To"
-          className="p-1 px-2 border border-[#ccc] rounded text-xs w-[130px]"
-        />
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-[#6c757d]">From</span>
+          <input
+            type="date"
+            value={filters.created_after ? filters.created_after.split('T')[0] : ''}
+            onChange={(e) => updateFilter('created_after', e.target.value ? `${e.target.value}T00:00:00` : '')}
+            className="p-1 px-2 border border-[#ccc] rounded text-xs w-[120px]"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-[#6c757d]">To</span>
+          <input
+            type="date"
+            value={filters.created_before ? filters.created_before.split('T')[0] : ''}
+            onChange={(e) => updateFilter('created_before', e.target.value ? `${e.target.value}T23:59:59` : '')}
+            className="p-1 px-2 border border-[#ccc] rounded text-xs w-[120px]"
+          />
+        </div>
 
         {hasActiveFilters && (
           <button
