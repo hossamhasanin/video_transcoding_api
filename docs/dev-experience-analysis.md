@@ -144,6 +144,7 @@ done
 #### 13. Output Format Templates
 Predefined HLS configs beyond presets — e.g., "adaptive streaming", "low bandwidth", "4K".
 
+done
 #### 14. Dashboard Job History
 The dashboard has no job list — only aggregate stats. Add a job table with filtering.
 

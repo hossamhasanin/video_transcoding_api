@@ -5,6 +5,7 @@ import { useAuthStore, selectIsAuthenticated } from './store/authStore'
 import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
 import Playground from './pages/Playground'
+import Settings from './pages/Settings'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
@@ -127,6 +128,11 @@ function AppContent(): React.ReactElement {
             <Route path="/playground" element={
               <ProtectedRoute>
                 <Playground />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             } />
 

@@ -1,4 +1,4 @@
-type ErrorWithDetail = {
+export type ErrorWithDetail = {
   response?: {
     data?: unknown
   }

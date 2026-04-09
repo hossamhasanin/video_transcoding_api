@@ -86,6 +86,12 @@ export const useAuthStore = create<AuthState>()(
         const { data } = await api.post('/auth/resend-verification')
         return data
       },
+
+      updateProfile: async (fullName?: string): Promise<User> => {
+        const { data } = await api.put<User>('/auth/profile', { full_name: fullName ?? null })
+        set({ user: data })
+        return data
+      },
     }),
     {
       name: 'auth-storage',

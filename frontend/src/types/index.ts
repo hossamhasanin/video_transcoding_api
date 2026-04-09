@@ -78,6 +78,7 @@ export interface AuthState {
   changePassword: (currentPassword: string, newPassword: string) => Promise<unknown>
   verifyEmail: (token: string) => Promise<unknown>
   resendVerification: () => Promise<unknown>
+  updateProfile: (fullName?: string) => Promise<User>
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +160,17 @@ export interface UploadMetadata {
   filename: string
   size_bytes: number
   content_type: string
+}
+
+export interface WebhookSettings {
+  webhook_secret_set: boolean
+  webhook_secret_masked: string | null
+  default_webhook_url: string | null
+}
+
+export interface WebhookSecretResponse {
+  webhook_secret: string
+  webhook_secret_masked: string
 }
 
 export interface TestJobResponse {

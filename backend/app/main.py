@@ -6,6 +6,7 @@ from app.core.rate_limit import limiter
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.api.endpoints import auth, jobs, keys, usage, playground, uploads, dashboard
+from app.api.endpoints import settings as settings_router
 
 setup_logging()
 
@@ -53,6 +54,11 @@ app.include_router(
 # Playground routes (protected by JWT bearer)
 app.include_router(
     playground.router, prefix=f"{settings.API_V1_STR}/playground", tags=["playground"]
+)
+
+# Settings routes (protected by JWT bearer)
+app.include_router(
+    settings_router.router, prefix=f"{settings.API_V1_STR}/settings", tags=["settings"]
 )
 
 

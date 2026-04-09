@@ -98,6 +98,19 @@ class ChangePasswordRequest(BaseModel):
         return v
 
 
+class UserProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            if len(v) > 255:
+                raise ValueError("Full name must be at most 255 characters")
+        return v
+
+
 # --- Response schemas ---
 
 

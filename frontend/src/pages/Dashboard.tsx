@@ -9,7 +9,6 @@ import {
   Inbox,
 
 } from 'lucide-react'
-import ApiKeyManager from '../components/ApiKeyManager'
 import JobHistory from '../components/JobHistory'
 import { useUsageStats } from '../hooks/useUsageStats'
 import { useCountUp } from '../hooks/useCountUp'
@@ -125,9 +124,6 @@ function Dashboard(): React.ReactElement {
           <p className="text-sm text-text-tertiary mt-1">Submit your first transcoding job to see usage data here.</p>
         </div>
       )}
-
-      <h2 className="text-lg font-semibold text-text-primary mb-4">API Keys</h2>
-      <ApiKeyManager />
 
       <div className="mt-10">
         <JobHistory />

@@ -22,6 +22,7 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     ResetPasswordRequest,
     ChangePasswordRequest,
+    UserProfileUpdate,
     TokenResponse,
     UserResponse,
     AuthResponse,
@@ -167,6 +168,26 @@ from app.api.dependencies import get_current_user as _get_jwt_user
     summary="Get current user profile",
 )
 def get_profile(current_user: User = Depends(_get_jwt_user)):
+    return current_user
+
+
+# ---- Update Profile ----
+
+
+@router.put(
+    "/profile",
+    response_model=UserResponse,
+    summary="Update user profile",
+)
+def update_profile(
+    profile_in: UserProfileUpdate,
+    current_user: User = Depends(_get_jwt_user),
+    db: Session = Depends(get_db),
+):
+    if profile_in.full_name is not None:
+        current_user.full_name = profile_in.full_name.strip() or None
+    db.commit()
+    db.refresh(current_user)
     return current_user
 
 

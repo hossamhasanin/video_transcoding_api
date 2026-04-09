@@ -33,7 +33,7 @@ function ApiKeyManager(): React.ReactElement {
   const isMutating = isCreating || isRevoking
 
   return (
-    <div className="bg-surface-raised rounded-xl border border-border p-6">
+    <>
       {error && (
         <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg mb-5">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -142,7 +142,7 @@ function ApiKeyManager(): React.ReactElement {
           )}
         </div>
       )}
-    </div>
+    </>
   )
 }
 
