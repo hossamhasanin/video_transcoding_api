@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, NavLink, Link, Navigate, Outlet } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, NavLink, Link, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { Zap, LayoutDashboard, FlaskConical, Key, LogOut, LogIn, UserPlus, ShieldCheck, FileText, ArrowLeft } from 'lucide-react'
 import { useAuthStore, selectIsAuthenticated } from './store/authStore'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import Playground from './pages/Playground'
 import Settings from './pages/Settings'
 import ApiDocs from './pages/ApiDocs'
+import Landing from './pages/Landing'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
@@ -16,6 +17,10 @@ import './index.css'
 
 /** Independent layout for the docs page — no app sidebar, own top bar */
 function DocsLayout(): React.ReactElement {
+  const location = useLocation()
+  const from = (location.state as { from?: string } | null)?.from ?? '/'
+  const backLabel = from === '/dashboard' ? 'Dashboard' : 'Home'
+
   return (
     <div className="min-h-screen bg-surface text-text-primary">
       <header className="sticky top-0 z-10 bg-surface-raised border-b border-border px-6 py-3 flex items-center justify-between">
@@ -24,11 +29,11 @@ function DocsLayout(): React.ReactElement {
           <span className="text-lg font-bold tracking-tight">TranscodeFlow</span>
         </Link>
         <Link
-          to="/"
+          to={from}
           className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-accent no-underline transition-colors"
         >
           <ArrowLeft size={16} />
-          Back to Dashboard
+          Back to {backLabel}
         </Link>
       </header>
       <Outlet />
@@ -72,7 +77,7 @@ function AppLayout(): React.ReactElement {
             </div>
             <ul className="list-none p-0 flex-1">
               <li className="mb-1">
-                <NavLink to="/" end className={({ isActive }) =>
+                <NavLink to="/dashboard" end className={({ isActive }) =>
                   `flex items-center gap-2.5 text-white no-underline text-sm font-medium rounded-lg px-3 py-2.5 transition-colors ${isActive
                     ? 'bg-sidebar-active border-l-2 border-accent shadow-[inset_4px_0_8px_var(--color-accent-glow)]'
                     : 'text-white/80 hover:bg-sidebar-hover hover:text-white'
@@ -102,7 +107,7 @@ function AppLayout(): React.ReactElement {
                 </NavLink>
               </li>
               <li className="mb-1 mt-4 pt-4 border-t border-white/10">
-                <NavLink to="/docs" className={({ isActive }) =>
+                <NavLink to="/docs" state={{ from: '/dashboard' }} className={({ isActive }) =>
                   `flex items-center gap-2.5 text-white no-underline text-sm font-medium rounded-lg px-3 py-2.5 transition-colors ${isActive
                     ? 'bg-sidebar-active border-l-2 border-accent shadow-[inset_4px_0_8px_var(--color-accent-glow)]'
                     : 'text-white/80 hover:bg-sidebar-hover hover:text-white'
@@ -135,7 +140,7 @@ function AppLayout(): React.ReactElement {
               </Link>
             </li>
             <li className="mb-1 mt-4 pt-4 border-t border-white/10">
-              <NavLink to="/docs" className={({ isActive }) =>
+              <NavLink to="/docs" state={{ from: '/dashboard' }} className={({ isActive }) =>
                 `flex items-center gap-2.5 text-white no-underline text-sm font-medium rounded-lg px-3 py-2.5 transition-colors ${isActive
                   ? 'bg-sidebar-active border-l-2 border-accent shadow-[inset_4px_0_8px_var(--color-accent-glow)]'
                   : 'text-white/80 hover:bg-sidebar-hover hover:text-white'
@@ -166,6 +171,9 @@ function AppContent(): React.ReactElement {
       }}
     >
       <Routes>
+        {/* Landing page — standalone, no layout */}
+        <Route path="/" element={<Landing />} />
+
         {/* Docs branch — independent layout, no app sidebar */}
         <Route element={<DocsLayout />}>
           <Route path="/docs" element={<ApiDocs />} />
@@ -174,14 +182,14 @@ function AppContent(): React.ReactElement {
         {/* App branch — sidebar layout */}
         <Route element={<AppLayout />}>
           {/* Auth routes */}
-          <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <Login />} />
-          <Route path="/register" element={isAuthenticated ? <Navigate to="/" /> : <Register />} />
+          <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
+          <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
 
           {/* Protected routes */}
-          <Route path="/" element={
+          <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
@@ -198,7 +206,7 @@ function AppContent(): React.ReactElement {
           } />
 
           {/* Catch all */}
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<Navigate to="/dashboard" />} />
         </Route>
       </Routes>
     </Router>
