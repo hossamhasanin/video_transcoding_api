@@ -62,6 +62,13 @@
   --color-json-bool:       #7c1ac7;
   --color-json-null:       #808080;
   --color-json-bracket:    #333333;
+
+  /* cURL syntax highlighting */
+  --color-curl-command:      #0b7571;
+  --color-curl-flag:         #7c1ac7;
+  --color-curl-url:          #1a1ac7;
+  --color-curl-header-value: #b5200c;
+  --color-curl-string:       #b5200c;
 }
 
 @keyframes stripe-slide {
