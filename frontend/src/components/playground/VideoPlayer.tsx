@@ -82,7 +82,6 @@ function VideoPlayer({
           ref={videoRef}
           className="w-full rounded-lg"
           controls
-          crossOrigin="anonymous"
         >
           {subtitleProxyUrl && (
             <track

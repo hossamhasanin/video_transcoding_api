@@ -1,10 +1,38 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
+import { FileVideo, Subtitles, Loader2 } from "lucide-react";
 import type { TestJobResponse } from "../../types/index";
+import { useAuthStore } from "../../store/authStore";
 import VideoPlayer from "./VideoPlayer";
+
+const API_BASE =
+  import.meta.env.VITE_API_URL ?? "http://localhost:8000/api/v1";
+
+function buildProxyUrl(jobId: string, filePath: string): string {
+  const tokens = useAuthStore.getState().tokens;
+  const token = tokens?.access_token ?? "";
+  return `${API_BASE}/playground/stream/${jobId}/${filePath}?token=${encodeURIComponent(token)}`;
+}
 
 interface JobResultPanelProps {
   job: TestJobResponse;
   polling: boolean;
+}
+
+async function downloadFromUrl(
+  url: string,
+  filename: string,
+): Promise<void> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download failed: ${res.statusText}`);
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(blobUrl);
 }
 
 function formatBytes(bytes: number | null): string {
@@ -72,6 +100,45 @@ function JobResultPanel({
   const isCompleted = job.status === "completed";
   const isFailed = job.status === "failed";
 
+  const [downloading, setDownloading] = useState<
+    "video" | "subtitle" | null
+  >(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const videoDownloadUrl =
+    job.output_format === "hls"
+      ? buildProxyUrl(job.id, "hls_output.zip")
+      : buildProxyUrl(job.id, "output.mp4");
+  const videoDownloadLabel =
+    job.output_format === "hls" ? "Download HLS Package" : "Download Video";
+  const videoDownloadFilename =
+    job.output_format === "hls"
+      ? `${job.id}-hls.zip`
+      : `${job.id}-output.mp4`;
+  const subtitleDownloadUrl = buildProxyUrl(job.id, "subtitles.vtt");
+  const subtitleDownloadFilename = `${job.id}-subtitles.vtt`;
+
+  const handleDownload = useCallback(
+    async (
+      url: string,
+      filename: string,
+      type: "video" | "subtitle",
+    ) => {
+      setDownloading(type);
+      setDownloadError(null);
+      try {
+        await downloadFromUrl(url, filename);
+      } catch {
+        setDownloadError(
+          `Failed to download ${type}. The link may have expired.`,
+        );
+      } finally {
+        setDownloading(null);
+      }
+    },
+    [],
+  );
+
   return (
     <div className="space-y-4">
       {/* Status */}
@@ -115,6 +182,68 @@ function JobResultPanel({
           <span className="px-2 py-1 text-xs bg-accent-soft text-text-secondary rounded-lg">
             Format: {job.output_format.toUpperCase()}
           </span>
+        </div>
+      )}
+
+      {/* Download buttons */}
+      {isCompleted && (
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+          {videoDownloadUrl && (
+            <button
+              type="button"
+              onClick={() =>
+                handleDownload(
+                  videoDownloadUrl,
+                  videoDownloadFilename,
+                  "video",
+                )
+              }
+              disabled={downloading !== null}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold
+                transition-colors cursor-pointer
+                bg-accent-soft text-text-primary hover:bg-accent-glow
+                ${downloading !== null ? "opacity-60 cursor-not-allowed" : ""}`}
+            >
+              {downloading === "video" ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileVideo className="w-4 h-4" />
+              )}
+              {videoDownloadLabel}
+            </button>
+          )}
+
+          {job.subtitle_url && (
+            <button
+              type="button"
+              onClick={() =>
+                handleDownload(
+                  subtitleDownloadUrl,
+                  subtitleDownloadFilename,
+                  "subtitle",
+                )
+              }
+              disabled={downloading !== null}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold
+                transition-colors cursor-pointer
+                bg-accent-soft text-text-primary hover:bg-accent-glow
+                ${downloading !== null ? "opacity-60 cursor-not-allowed" : ""}`}
+            >
+              {downloading === "subtitle" ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Subtitles className="w-4 h-4" />
+              )}
+              Download Subtitles
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Download error */}
+      {downloadError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
+          {downloadError}
         </div>
       )}
     </div>

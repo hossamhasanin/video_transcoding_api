@@ -195,6 +195,9 @@ export interface TestJobResponse {
   source_url: string
   output_format: string
   output_url: string | null
+  output_url_expires_at: string | null
+  output_zip_url: string | null
+  output_zip_url_expires_at: string | null
   error_message: string | null
   preset: string | null
   generate_subtitles: boolean

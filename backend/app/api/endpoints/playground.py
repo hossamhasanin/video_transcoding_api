@@ -383,7 +383,64 @@ def stream_job_file(
             media_type=content_type,
         )
 
-    # For binary files, stream directly
+    # For binary files, stream with Range support for video playback
+    total_size = resp.get("ContentLength", 0)
+
+    range_header = request.headers.get("range")
+    if range_header:
+        # Parse Range header: bytes=start-end
+        match = re.match(r"bytes=(\d+)-(\d*)", range_header)
+        if not match or total_size == 0:
+            return Response(
+                status_code=416,
+                headers={"Content-Range": f"bytes */{total_size}"},
+            )
+
+        start = int(match.group(1))
+        end = int(match.group(2)) if match.group(2) else total_size - 1
+
+        if start >= total_size or end >= total_size or start > end:
+            return Response(
+                status_code=416,
+                headers={"Content-Range": f"bytes */{total_size}"},
+            )
+
+        # Re-fetch from S3 with Range parameter
+        try:
+            range_resp = s3.get_object(
+                Bucket=bucket,
+                Key=s3_key,
+                Range=f"bytes={start}-{end}",
+            )
+        except Exception:
+            raise HTTPException(status_code=500, detail="Failed to fetch file range")
+
+        range_body = range_resp["Body"]
+        content_length = end - start + 1
+
+        def _iter_range():
+            try:
+                while True:
+                    chunk = range_body.read(64 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                range_body.close()
+                body.close()
+
+        return StreamingResponse(
+            _iter_range(),
+            status_code=206,
+            media_type=content_type,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{total_size}",
+                "Content-Length": str(content_length),
+                "Accept-Ranges": "bytes",
+            },
+        )
+
+    # No Range header — stream full file with Range support headers
     def _iter():
         try:
             while True:
@@ -397,6 +454,10 @@ def stream_job_file(
     return StreamingResponse(
         _iter(),
         media_type=content_type,
+        headers={
+            "Content-Length": str(total_size),
+            "Accept-Ranges": "bytes",
+        },
     )
 
 
